@@ -1,0 +1,26 @@
+spring:
+    application:
+        name: BE
+
+    jpa:
+        hibernate:
+            ddl-auto: update
+        show-sql: true
+
+    datasource:
+        url: jdbc:mysql://192.168.10.207:3306/kallio
+        username: dev
+        password: 123456
+
+    security:
+        oauth2:
+            client:
+                registration:
+                    google:
+                        client-id: YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
+
+livekit:
+    api-key: devkey
+    api-secret: secret
+    host: http://192.168.10.207:7880
+    ws-url: ws://192.168.10.207:7880
