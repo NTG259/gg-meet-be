@@ -2,30 +2,20 @@ spring:
     application:
         name: BE
 
+    # Kích hoạt mặc định profile dev khi chạy local
+    profiles:
+        active: dev
+
     jpa:
         hibernate:
             ddl-auto: update
         show-sql: true
-
-    datasource:
-        url: jdbc:mysql://localhost:3306/kallio
-        username: root
-        password: 123456
 
     security:
         oauth2:
             client:
                 registration:
                     google:
-                        client-id: 398298244316-jnf8fnoa639l529n82bbqjdo6l8dtejs.apps.googleusercontent.com
-                        client-secret: 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
                         scope:
                             - email
                             - profile
-
-livekit:
-    api-key: devkey
-    api-secret: secret
-    host: http://192.168.10.207:7880
-    ws-url: ws://192.168.10.207:7880
-
