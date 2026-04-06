@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class MeetingResponse {
-    private String meetingCode;
-    private String joinUrl;
+public class UserResponseDTO {
+    private String fullName;
+    private String email;
 }

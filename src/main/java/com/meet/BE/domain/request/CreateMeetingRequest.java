@@ -1,11 +1,17 @@
 package com.meet.BE.domain.request;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Setter
-@Getter
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class CreateMeetingRequest {
-    private String participantName;
+    private String title;
+    private Boolean isScheduled;
+    private int emptyTimeout;
+    private int departureTimeout;
+    private int maxParticipants;
+    private String metadata;
 }

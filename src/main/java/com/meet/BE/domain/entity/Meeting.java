@@ -1,5 +1,6 @@
 package com.meet.BE.domain.entity;
 
+import com.meet.BE.domain.enums.MeetingStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -17,14 +18,18 @@ public class Meeting {
     @JoinColumn(name = "host_id")
     private User host;
 
-    @Column(name = "meeting_code", nullable = false, length = 50)
+    @Column(name = "meeting_code", nullable = false, length = 50, unique = true)
     private String meetingCode;
+
+    @Column(name = "livekit_room_sid", length = 100, unique = true)
+    private String roomSid;
 
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(name = "is_scheduled", nullable = false)
-    private Boolean isScheduled;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private MeetingStatus status;
 
     @Column(name = "start_time")
     private LocalDateTime startTime;
@@ -34,4 +39,9 @@ public class Meeting {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

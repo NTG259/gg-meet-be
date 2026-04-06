@@ -15,9 +15,11 @@ public enum ErrorCode {
     USER_LOCKED(HttpStatus.BAD_REQUEST, "Tài khoản đã bị khóa"),
 
     //ROOM
-    ROOM_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Room already exists"),
-    ROOM_CANNOT_BE_CREATED(HttpStatus.BAD_REQUEST, "Room can't be created"),
-    ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Room not exists"),
+    ROOM_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Phòng đã tồn tại"),
+    ROOM_CANNOT_BE_CREATED(HttpStatus.BAD_REQUEST, "Lỗi không tạo được phòng"),
+    ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Phòng họp không tồn tại"),
+    NOT_PERMIT(HttpStatus.BAD_REQUEST, "Chỉ chủ phòng có quyền"),
+
     // DATA
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
     EMAIL_ALREADY_EXIST(HttpStatus.CONFLICT, "Email đã được sử dụng"),

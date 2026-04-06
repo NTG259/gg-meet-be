@@ -1,12 +1,19 @@
 package com.meet.BE.domain.entity;
 
+import com.meet.BE.domain.enums.Role;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "meeting_participants")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class MeetingParticipant {
 
     @Id
@@ -24,21 +31,19 @@ public class MeetingParticipant {
     @Column(name = "guest_name", length = 100)
     private String guestName;
 
-    @Column(nullable = false, length = 20)
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
-    @Column(name = "join_time", nullable = false)
-    private LocalDateTime joinTime;
+    // Ghi đè equals và hashCode chỉ dựa trên ID để tối ưu cho Set/Map của Hibernate
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MeetingParticipant)) return false;
+        return id != null && id.equals(((MeetingParticipant) o).getId());
+    }
 
-    @Column(name = "leave_time")
-    private LocalDateTime leaveTime;
-
-    @Column(name = "mic_on", nullable = false)
-    private Boolean micOn;
-
-    @Column(name = "camera_on", nullable = false)
-    private Boolean cameraOn;
-
-    @Column(name = "screen_sharing", nullable = false)
-    private Boolean screenSharing;
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

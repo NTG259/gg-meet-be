@@ -22,9 +22,9 @@ public class User {
     private String fullName;
     private String avatarUrl;
 
-    // Phân biệt user tự tạo tài khoản (LOCAL) hay đăng nhập bằng Google (GOOGLE)
-    @Enumerated(EnumType.STRING)
-    private AuthProvider provider;
+//    // Phân biệt user tự tạo tài khoản (LOCAL) hay đăng nhập bằng Google (GOOGLE)
+//    @Enumerated(EnumType.STRING)
+//    private AuthProvider provider;
 
     // ID định danh của Google trả về
     private String providerId;

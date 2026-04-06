@@ -37,7 +37,6 @@ dependencies {
 	testImplementation ("org.springframework.boot:spring-boot-starter-security-oauth2-client-test")
 	runtimeOnly ("com.mysql:mysql-connector-j")
 	testImplementation ("org.springframework.boot:spring-boot-starter-test")
-	implementation("io.openvidu:openvidu-java-client:2.32.1")
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
