@@ -8,8 +8,8 @@ spring:
         show-sql: true
 
     datasource:
-        url: jdbc:mysql://192.168.10.207:3306/kallio
-        username: dev
+        url: jdbc:mysql://localhost:3306/kallio
+        username: root
         password: 123456
 
     security:
@@ -17,10 +17,15 @@ spring:
             client:
                 registration:
                     google:
-                        client-id: YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
+                        client-id: 398298244316-jnf8fnoa639l529n82bbqjdo6l8dtejs.apps.googleusercontent.com
+                        client-secret: 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
+                        scope:
+                            - email
+                            - profile
 
 livekit:
     api-key: devkey
     api-secret: secret
     host: http://192.168.10.207:7880
     ws-url: ws://192.168.10.207:7880
+
