@@ -21,7 +21,7 @@ public class LoginResponse {
     public static class UserLogin{
         private Long id;
         private String email;
-        private String name;
+        private String fullName;
         private String role;
     }
 
@@ -40,7 +40,7 @@ public class LoginResponse {
     public static class UserInsideToken{
         private Long id;
         private String email;
-        private String name;
+        private String fullName;
         private String role;
     }
 }

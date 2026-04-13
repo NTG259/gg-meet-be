@@ -39,7 +39,7 @@ public class SecurityService {
     public String createAccessToken(LoginResponse loginResponse) {
         LoginResponse.UserInsideToken userToken = new LoginResponse.UserInsideToken();
         userToken.setId(loginResponse.getUser().getId());
-        userToken.setName(loginResponse.getUser().getName());
+        userToken.setFullName(loginResponse.getUser().getFullName());
         userToken.setEmail(loginResponse.getUser().getEmail());
         userToken.setRole(loginResponse.getUser().getRole());
         Instant now = Instant.now();
@@ -62,7 +62,7 @@ public class SecurityService {
     public String createRefreshToken(LoginResponse loginResponse) {
         LoginResponse.UserInsideToken userToken = new LoginResponse.UserInsideToken();
         userToken.setId(loginResponse.getUser().getId());
-        userToken.setName(loginResponse.getUser().getName());
+        userToken.setFullName(loginResponse.getUser().getFullName());
         userToken.setEmail(loginResponse.getUser().getEmail());
         userToken.setRole(loginResponse.getUser().getRole());
         Instant now = Instant.now();
