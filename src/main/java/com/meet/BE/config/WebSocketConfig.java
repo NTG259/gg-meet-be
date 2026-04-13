@@ -11,15 +11,29 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic", "/queue"); // nơi server push
-        config.setApplicationDestinationPrefixes("/app"); // client gửi lên
+    public void configureMessageBroker(MessageBrokerRegistry registry) {
+        registry.enableSimpleBroker("/topic", "/queue");
+        /*
+            server -> client
+            subscribe mẫu :
+               - /topic/meeting/{code}/waiting
+               - /topic/meeting/{code}/chat
+             Note : topic để broadcast, queue để 1-1
+        */
+        registry.setApplicationDestinationPrefixes("/api");
+        /*
+            client -> server
+            action mẫu :
+                - /api/meeting/join
+                - /api/meeting/admit
+         */
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*");
-//                .withSockJS();
+        registry.addEndpoint("/server")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
+        // Connect : ws://localhost:8080/server
     }
 }

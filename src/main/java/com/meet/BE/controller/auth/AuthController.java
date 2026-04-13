@@ -44,7 +44,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginDTO loginDTO) {
         UsernamePasswordAuthenticationToken authenticationToken =
-                new UsernamePasswordAuthenticationToken(loginDTO.getUsername(), loginDTO.getPassword());
+                new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword());
         try {
             Authentication authentication =
                     authenticationManagerBuilder.getObject().authenticate(authenticationToken);
@@ -52,7 +52,7 @@ public class AuthController {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             LoginResponse loginResponse = new LoginResponse();
-            User currentUserDB = this.userService.handleFindUserByEmail(loginDTO.getUsername());
+            User currentUserDB = this.userService.handleFindUserByEmail(loginDTO.getEmail());
 
             if(currentUserDB != null) {
                 LoginResponse.UserLogin userLogin = new LoginResponse.UserLogin(

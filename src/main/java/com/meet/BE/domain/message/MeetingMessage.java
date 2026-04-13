@@ -7,7 +7,7 @@ import lombok.Data;
 public class MeetingMessage {
     private String meetingCode;
     private Long userId;
-    private String name;
-    private ParticipantStatus status;
+    private String email;
+//    private ParticipantStatus status;
 }
 
