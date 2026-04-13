@@ -1,6 +1,5 @@
 package com.meet.BE.controller.auth;
 
-
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.dto.CreateUserDTO;
 import com.meet.BE.domain.dto.LoginDTO;
@@ -39,7 +38,7 @@ public class AuthController {
     private final UserService userService;
     private final SecurityUtils securityUtils;
 
-    @Value("${jwt.expiration}")
+    @Value("${jwt.refresh-token-expiration}")
     private Long expiration;
 
     @PostMapping("/login")
@@ -52,10 +51,9 @@ public class AuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            //create token
             LoginResponse loginResponse = new LoginResponse();
-
             User currentUserDB = this.userService.handleFindUserByEmail(loginDTO.getUsername());
+
             if(currentUserDB != null) {
                 LoginResponse.UserLogin userLogin = new LoginResponse.UserLogin(
                         currentUserDB.getId(),
@@ -65,27 +63,29 @@ public class AuthController {
                 );
                 loginResponse.setUser(userLogin);
             }
-            String accessToken = this.securityService.createAccessToken(loginResponse);
-            loginResponse.setAccessToken(accessToken);
+
+            // Access token trả về trong Body
+            loginResponse.setAccessToken(this.securityService.createAccessToken(loginResponse));
+
+            // Refresh token lưu vào Cookie và Database
+            String refreshToken = securityService.createRefreshToken(loginResponse);
+            this.userService.updateUserToken(refreshToken, loginResponse.getUser().getEmail());
 
             ResponseCookie cookie = ResponseCookie
-                    .from("access_token", accessToken)
+                    .from("rf_token", refreshToken)
                     .httpOnly(true)
                     .path("/")
                     .maxAge(expiration)
                     .build();
 
-
-
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, cookie.toString())
                     .body(new ApiResponse<>(loginResponse, "Đăng nhập thành công", null, HttpStatus.OK.value()));
+
         } catch (DisabledException e) {
             throw new BusinessException(ErrorCode.USER_DISABLED);
-
         } catch (BadCredentialsException e) {
             throw new BusinessException(ErrorCode.BAD_CREDENTIALS);
-
         } catch (LockedException e) {
             throw new BusinessException(ErrorCode.USER_LOCKED);
         }
@@ -100,7 +100,6 @@ public class AuthController {
                 .body(response);
     }
 
-    // User F5
     @GetMapping("/account")
     public ResponseEntity<LoginResponse.UserLogin> getAccount() {
         String email = SecurityUtils.getCurrentUserLogin()
@@ -118,16 +117,54 @@ public class AuthController {
                 .body(userLogin);
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<LoginResponse>> getRefreshToken(
+            @CookieValue(name = "rf_token") String refreshToken
+    ) {
+        // 1. Validate token
+        Jwt decodedToken = this.securityUtils.checkValidRefreshToken(refreshToken);
+        String email = decodedToken.getSubject();
+
+        // 2. Lấy và kiểm tra User (Cần có hàm này trong UserService)
+        User user = this.userService.getUserByEmailAndRefreshToken(email, refreshToken);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        // 3. Tạo data response
+        LoginResponse loginResponse = new LoginResponse();
+        LoginResponse.UserLogin userLogin = new LoginResponse.UserLogin(
+                user.getId(), user.getEmail(), user.getFullName(), user.getRole()
+        );
+        loginResponse.setUser(userLogin);
+        loginResponse.setAccessToken(this.securityService.createAccessToken(loginResponse));
+
+        // 4. Xử lý refresh token mới
+        String newRefreshToken = securityService.createRefreshToken(loginResponse);
+        this.userService.updateUserToken(newRefreshToken, email);
+
+        ResponseCookie cookie = ResponseCookie
+                .from("rf_token", newRefreshToken)
+                .httpOnly(true)
+                .path("/")
+                .maxAge(expiration)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(new ApiResponse<>(loginResponse, "Làm mới token thành công", null, HttpStatus.OK.value()));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
-
         String email = SecurityUtils.getCurrentUserLogin()
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
 
         userService.updateUserToken(null, email);
 
+        // Clear rf_token cookie
         ResponseCookie deleteCookie = ResponseCookie
-                .from("access_token", "")
+                .from("rf_token", "")
                 .httpOnly(true)
                 .path("/")
                 .maxAge(0)

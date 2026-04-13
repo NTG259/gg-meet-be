@@ -48,8 +48,14 @@ public class UserService {
     public void updateUserToken(String token, String email) {
         User user = this.userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        user.setAccessToken(token);
+        user.setRefreshToken(token);
         this.userRepository.save(user);
     }
 
+    public User getUserByEmailAndRefreshToken(String email, String refreshToken) {
+        return this.userRepository.findUserByEmailAndRefreshToken(email, refreshToken)
+                .orElseThrow(
+                        () -> new BusinessException(ErrorCode.UNAUTHORIZED)
+                );
+    }
 }

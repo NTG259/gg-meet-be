@@ -37,6 +37,23 @@ public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtKey;
 
+    private org.springframework.security.oauth2.server.resource.web.BearerTokenResolver cookieTokenResolver() {
+        return request -> {
+            if (request.getCookies() != null) {
+                for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                    if ("access_token".equals(cookie.getName())) {
+                        return cookie.getValue();
+                    }
+                }
+            }
+            // Vẫn hỗ trợ đọc từ Header (phòng khi test Postman)
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                return authHeader.substring(7);
+            }
+            return null;
+        };
+    }
 
     // Đăng nhập thành công thì phân quyền
     @Bean

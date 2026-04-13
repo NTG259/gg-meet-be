@@ -2,6 +2,7 @@ package com.meet.BE.service;
 
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.enums.ParticipantStatus;
+import com.meet.BE.domain.enums.Role;
 import com.meet.BE.domain.message.MeetingMessage;
 import com.meet.BE.domain.request.CreateMeetingRequest;
 import com.meet.BE.domain.entity.Meeting;
@@ -83,10 +84,9 @@ public class MeetingService {
      * Tham gia vào một cuộc họp đã tồn tại
      */
 
-    @Transactional(readOnly = true)
+    @Transactional
     public MeetingResponseDTO joinMeeting(User participant, String meetingCode){
-        Meeting meeting = meetingRepository.findByMeetingCode(meetingCode)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
+        Meeting meeting = handleFindMeeting(meetingCode);
 
         if (meeting.getStatus() != MeetingStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
@@ -102,6 +102,17 @@ public class MeetingService {
 
         String livekitToken = token.toJwt();
 
+        MeetingParticipant meetingParticipant = new MeetingParticipant();
+        meetingParticipant.setMeeting(meeting);
+        meetingParticipant.setUser(participant);
+        if (meeting.getHost().getId() == participant.getId()) {
+            meetingParticipant.setRole(Role.HOST);
+            meetingParticipant.setParticipantStatus(ParticipantStatus.ACCEPT);
+        } else {
+            meetingParticipant.setRole(Role.PARTICIPANT);
+            meetingParticipant.setParticipantStatus(ParticipantStatus.WAITING);
+        }
+        this.meetingParticipantRepository.save(meetingParticipant);
         return MeetingConvert.ToResponse(meeting, livekitToken);
     }
 

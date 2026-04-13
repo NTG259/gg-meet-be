@@ -44,7 +44,7 @@ public class User {
     private String role;
 
     @Column(columnDefinition = "MEDIUMTEXT")
-    private String accessToken;
+    private String refreshToken;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

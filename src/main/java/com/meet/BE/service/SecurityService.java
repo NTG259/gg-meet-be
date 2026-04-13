@@ -1,6 +1,5 @@
 package com.meet.BE.service;
 
-
 import com.meet.BE.domain.response.LoginResponse;
 import com.nimbusds.jose.util.Base64;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +16,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-
 @Service
 @RequiredArgsConstructor
 public class SecurityService {
@@ -29,6 +27,9 @@ public class SecurityService {
 
     @Value("${jwt.expiration}")
     private long accessTokenExpiration;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenExpiration;
 
     private SecretKey getSecretKey() {
         byte[] keyBytes = Base64.from(jwtKey).decode();
@@ -42,6 +43,7 @@ public class SecurityService {
         userToken.setEmail(loginResponse.getUser().getEmail());
         userToken.setRole(loginResponse.getUser().getRole());
         Instant now = Instant.now();
+        // Sửa lại dùng đúng accessTokenExpiration
         Instant validity = now.plus(this.accessTokenExpiration, ChronoUnit.SECONDS);
 
         // @formatter:off
@@ -57,4 +59,25 @@ public class SecurityService {
         return this.jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
     }
 
+    public String createRefreshToken(LoginResponse loginResponse) {
+        LoginResponse.UserInsideToken userToken = new LoginResponse.UserInsideToken();
+        userToken.setId(loginResponse.getUser().getId());
+        userToken.setName(loginResponse.getUser().getName());
+        userToken.setEmail(loginResponse.getUser().getEmail());
+        userToken.setRole(loginResponse.getUser().getRole());
+        Instant now = Instant.now();
+        Instant validity = now.plus(this.refreshTokenExpiration, ChronoUnit.SECONDS);
+
+        // @formatter:off
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuedAt(now)
+                .expiresAt(validity)
+                .subject(userToken.getEmail())
+                .claim("roles", userToken.getRole())
+                .claim("user", userToken)
+                .build();
+
+        JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
+        return this.jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+    }
 }
