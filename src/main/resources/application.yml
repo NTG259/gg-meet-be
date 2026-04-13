@@ -19,3 +19,7 @@ spring:
                         scope:
                             - email
                             - profile
+
+# JWT Configuration
+jwt-secret: "your-secret-key-change-this-in-production-this-must-be-at-least-32-characters-long-12345"
+jwt-expiration: 86400000 # 24 giờ (tính bằng milliseconds)

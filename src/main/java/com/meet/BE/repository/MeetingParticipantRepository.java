@@ -10,4 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface MeetingParticipantRepository extends JpaRepository<MeetingParticipant, Long> {}
+public interface MeetingParticipantRepository extends JpaRepository<MeetingParticipant, Long> {
+    Optional<MeetingParticipant> findByMeetingIdAndUserId(Long meetingId, Long userId);
+}

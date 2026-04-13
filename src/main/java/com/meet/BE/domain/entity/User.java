@@ -1,10 +1,13 @@
 package com.meet.BE.domain.entity;
 
+import com.meet.BE.domain.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.security.AuthProvider;
+import java.time.LocalDateTime;
 
 
 @Entity
@@ -19,18 +22,41 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(nullable = false)
     private String fullName;
-    private String avatarUrl;
 
-//    // Phân biệt user tự tạo tài khoản (LOCAL) hay đăng nhập bằng Google (GOOGLE)
-//    @Enumerated(EnumType.STRING)
-//    private AuthProvider provider;
-
-    // ID định danh của Google trả về
-    private String providerId;
-
-    // Mật khẩu có thể null nếu đăng nhập bằng Google
+    @Column(nullable = true)
     private String password;
 
-    // ... các trường khác (role, created_at...)
+    // Phân biệt user tự tạo tài khoản (LOCAL) hay đăng nhập bằng Google, GitHub
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'LOCAL'")
+    private AuthProvider authProvider;
+
+    // ID định danh của OAuth provider (Google, GitHub, ...)
+    @Column(nullable = true)
+    private String providerId;
+
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT true")
+    private Boolean enabled;
+
+    @Column(nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'USER'")
+    private String role;
+
+    @Column(columnDefinition = "MEDIUMTEXT")
+    private String accessToken;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    public User() {
+        this.authProvider = AuthProvider.LOCAL;
+        this.enabled = true;
+        this.role = "USER";
+    }
 }

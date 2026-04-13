@@ -1,4 +1,4 @@
-package com.meet.BE.controller;
+package com.meet.BE.controller.rest;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestMapping;

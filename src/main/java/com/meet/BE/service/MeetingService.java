@@ -1,6 +1,8 @@
 package com.meet.BE.service;
 
 import com.meet.BE.domain.entity.MeetingParticipant;
+import com.meet.BE.domain.enums.ParticipantStatus;
+import com.meet.BE.domain.message.MeetingMessage;
 import com.meet.BE.domain.request.CreateMeetingRequest;
 import com.meet.BE.domain.entity.Meeting;
 import com.meet.BE.domain.entity.User;
@@ -130,4 +132,11 @@ public class MeetingService {
         meeting.setStatus(MeetingStatus.ENDED);
         meetingRepository.save(meeting);
     }
+
+    public Meeting handleFindMeeting(String roomCode) {
+        return this.meetingRepository.findByMeetingCode(roomCode).orElseThrow(
+                () -> new BusinessException(ErrorCode.DATA_NOT_FOUND)
+        );
+    }
+
 }

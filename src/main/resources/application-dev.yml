@@ -17,3 +17,7 @@ livekit:
   api-secret: secret
   host: http://192.168.10.207:7880
   ws-url: ws://192.168.10.207:7880
+
+jwt:
+  secret: mFh3Q2pVYk9nZ3ZlS0t4T1JkR3l2b2h2Y3F1TzF5QzZtU1pGd1E9
+  expiration: 60000000
