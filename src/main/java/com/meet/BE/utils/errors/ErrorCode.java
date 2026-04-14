@@ -19,6 +19,7 @@ public enum ErrorCode {
     ROOM_CANNOT_BE_CREATED(HttpStatus.BAD_REQUEST, "Lỗi không tạo được phòng"),
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Phòng họp không tồn tại"),
     NOT_PERMIT(HttpStatus.BAD_REQUEST, "Chỉ chủ phòng có quyền"),
+    USER_NOT_IN_THIS_ROOM(HttpStatus.BAD_REQUEST, "Người dùng này không thuộc phòng họp hiện tại"),
 
     // DATA
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
@@ -32,7 +33,8 @@ public enum ErrorCode {
     ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND, "Đường dẫn không hợp lệ"),
     DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "Dữ liệu không tồn tại"),
 
-    ;
+    INVALID_STATUS(HttpStatus.BAD_REQUEST, "Trạng thái không hợp lệ"),
+    MEETING_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "Phòng họp đã kết thúc");
     private final HttpStatus status;
     private final String message;
     ErrorCode(HttpStatus status, String message) {

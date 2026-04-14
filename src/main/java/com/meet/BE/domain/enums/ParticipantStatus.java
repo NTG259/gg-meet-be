@@ -4,5 +4,6 @@ public enum ParticipantStatus {
     WAITING,
     ACCEPT,
     BLOCK,
-    REJECT
+    REJECT,
+    LEFT
 }

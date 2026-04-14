@@ -1,112 +1,93 @@
 package com.meet.BE.controller.socket;
 
-import com.meet.BE.controller.auth.AuthController;
-import com.meet.BE.domain.message.MeetingMessage;
+import com.meet.BE.domain.message.MeetingWsMessage;
 import com.meet.BE.service.ParticipantService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 @Controller
 @RequiredArgsConstructor
+@Slf4j // Sử dụng @Slf4j của Lombok để code sạch hơn
 public class MeetingWsController {
-    private static final Logger log = LoggerFactory.getLogger(MeetingWsController.class);
+
     private final SimpMessagingTemplate messagingTemplate;
     private final ParticipantService participantService;
 
-    // USER JOIN WAITING ROOM
-    @MessageMapping("/meet.join")
-    public void join(MeetingMessage msg) {
-
-        log.info("WS JOIN request: meetingCode={}, userId={}, email={}",
-                msg.getMeetingCode(), msg.getUserId(), msg.getEmail());
-
-        try {
-            participantService.joinWaiting(msg);
-
-            log.info("User joined waiting room: meetingCode={}, userId={}, email={}",
-                    msg.getMeetingCode(), msg.getUserId(), msg.getEmail());
-
-            messagingTemplate.convertAndSend(
-                    "/topic/meeting/" + msg.getMeetingCode() + "/waiting",
-                    msg
-            );
-
-            log.info("Broadcast waiting list to topic: /topic/meeting/{}/waiting",
-                    msg.getMeetingCode());
-
-        } catch (Exception e) {
-            log.error("JOIN failed: meetingCode={}, userId={}, error={}",
-                    msg.getMeetingCode(), msg.getUserId(), e.getMessage());
-            throw e;
-        }
-    }
-
     // HOST ADMIT USER
-    @MessageMapping("/meeting.accept")
-    public void admit(MeetingMessage msg) {
+    @MessageMapping("/meeting/accept")
+    public void admit(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
 
-        log.info("WS ADMIT request: meetingCode={}, userId={}",
-                msg.getMeetingCode(), msg.getUserId());
+        // Lấy ID của Host thao tác từ WebSocket Session (đã lưu lúc check Token)
+        Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+
+        log.info("WS ADMIT request: hostParticipantId={}, targetParticipantId={}, meetingCode={}",
+                hostParticipantId, msg.getTargetParticipantId(), msg.getMeetingCode());
 
         try {
-            participantService.admit(msg.getMeetingCode(), msg.getUserId());
+            // Duyệt ở backend bằng actorParticipantId lấy từ session WS (không tin payload FE).
+            // Service giờ chỉ cần ID của bản ghi Participant để duyệt
+            participantService.admit(hostParticipantId, msg.getTargetParticipantId(), msg.getMeetingCode());
 
-            log.info("User admitted: meetingCode={}, userId={}",
-                    msg.getMeetingCode(), msg.getUserId());
+            msg.setAction("ADMITTED");
 
-            // gửi riêng user
-            messagingTemplate.convertAndSendToUser(
-                    String.valueOf(msg.getUserId()),
-                    "/queue/admitted",
+            // 1. Gửi tin nhắn RIÊNG cho người được duyệt (Dùng topic có chứa ID của họ)
+            // Frontend của Khách sẽ subscribe: /topic/meeting/{meetingCode}/participant/{participantId}
+            messagingTemplate.convertAndSend(
+                    "/topic/meeting/" + msg.getMeetingCode() + "/participant/" + msg.getTargetParticipantId(),
                     msg
             );
+            log.info("Sent admit message to participant topic: {}", msg.getTargetParticipantId());
 
-            log.info("Sent admit message to user queue: userId={}", msg.getUserId());
-
-            // broadcast vào room
+            // 2. Broadcast vào chung cả room (Tùy chọn: Để báo cho mọi người biết có người mới vào)
             messagingTemplate.convertAndSend(
                     "/topic/meeting/" + msg.getMeetingCode(),
                     msg
             );
 
-            log.info("Broadcast user joined meeting: meetingCode={}", msg.getMeetingCode());
-
-        } catch (Exception e) {
-            log.error("ADMIT failed: meetingCode={}, userId={}, error={}",
-                    msg.getMeetingCode(), msg.getUserId(), e.getMessage());
-            throw e;
+        } catch (RuntimeException e) {
+            log.error("ADMIT failed: targetParticipantId={}, error={}",
+                    msg.getTargetParticipantId(), e.getMessage());
+            throw e; // Tùy chiến lược xử lý lỗi mà bạn có thể bọc lại
         }
     }
 
     // HOST REJECT USER
-    @MessageMapping("/meeting.reject")
-    public void reject(MeetingMessage msg) {
+    @MessageMapping("/meeting/reject")
+    public void reject(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
 
-        log.info("WS REJECT request: meetingCode={}, userId={}",
-                msg.getMeetingCode(), msg.getUserId());
+        Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+
+        log.info("WS REJECT request: hostParticipantId={}, targetParticipantId={}, meetingCode={}",
+                hostParticipantId, msg.getTargetParticipantId(), msg.getMeetingCode());
 
         try {
-            participantService.reject(msg.getMeetingCode(), msg.getUserId());
+            // Từ chối cũng kiểm tra cùng cơ chế quyền HOST như luồng duyệt.
+            participantService.reject(hostParticipantId, msg.getTargetParticipantId(), msg.getMeetingCode());
 
-            log.info("User rejected: meetingCode={}, userId={}",
-                    msg.getMeetingCode(), msg.getUserId());
+            msg.setAction("REJECTED");
 
-            messagingTemplate.convertAndSendToUser(
-                    String.valueOf(msg.getUserId()),
-                    "/queue/rejected",
+            // Gửi tin nhắn RIÊNG cho người bị từ chối
+            messagingTemplate.convertAndSend(
+                    "/topic/meeting/" + msg.getMeetingCode() + "/participant/" + msg.getTargetParticipantId(),
                     msg
             );
+            log.info("Sent reject message to participant topic: {}", msg.getTargetParticipantId());
 
-            log.info("Sent reject message to user queue: userId={}", msg.getUserId());
-
-        } catch (Exception e) {
-            log.error("REJECT failed: meetingCode={}, userId={}, error={}",
-                    msg.getMeetingCode(), msg.getUserId(), e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("REJECT failed: targetParticipantId={}, error={}",
+                    msg.getTargetParticipantId(), e.getMessage());
             throw e;
         }
+    }
+
+    private Long getParticipantIdFromSession(SimpMessageHeaderAccessor headerAccessor) {
+        if (headerAccessor.getSessionAttributes() == null) {
+            return null;
+        }
+        return (Long) headerAccessor.getSessionAttributes().get("participantId");
     }
 }

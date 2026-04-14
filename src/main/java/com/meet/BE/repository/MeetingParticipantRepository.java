@@ -12,4 +12,6 @@ import java.util.Optional;
 @Repository
 public interface MeetingParticipantRepository extends JpaRepository<MeetingParticipant, Long> {
     Optional<MeetingParticipant> findByMeetingIdAndUserId(Long meetingId, Long userId);
+
+    Optional<MeetingParticipant> findByMeetingIdAndGuestId(Long id, String guestId);
 }

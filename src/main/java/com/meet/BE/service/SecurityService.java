@@ -5,16 +5,17 @@ import com.nimbusds.jose.util.Base64;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwsHeader;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -79,5 +80,43 @@ public class SecurityService {
 
         JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
         return this.jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+    }
+
+    // =========================================================================
+    // 1. TẠO VÉ MEETING (Dùng JwtEncoder của Spring Security)
+    // =========================================================================
+    public String generateMeetingToken(Long participantId, String meetingCode, String role) {
+        Instant now = Instant.now();
+        // Hạn sử dụng vé: 12 tiếng
+        Instant validity = now.plus(12, ChronoUnit.HOURS);
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuedAt(now)
+                .expiresAt(validity)
+                .subject(String.valueOf(participantId))
+                .claim("participantId", participantId) // Lưu ID của người tham gia
+                .claim("meetingCode", meetingCode)     // Lưu mã phòng họp
+                .claim("role", role)                   // Lưu quyền (HOST/PARTICIPANT)
+                .build();
+
+        JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
+        return this.jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+    }
+
+    // =========================================================================
+    // 2. GIẢI MÃ VÉ MEETING (Dùng NimbusJwtDecoder)
+    // =========================================================================
+    public Long getParticipantIdFromToken(String token) {
+        // Tạo Decoder từ chính Secret Key của bạn
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(getSecretKey())
+                .macAlgorithm(JWT_ALGORITHM)
+                .build();
+
+        // Giải mã token
+        Jwt jwt = jwtDecoder.decode(token);
+
+        // Lấy trường participantId ra và parse về Long
+        Object participantIdObj = jwt.getClaim("participantId");
+        return Long.parseLong(participantIdObj.toString());
     }
 }

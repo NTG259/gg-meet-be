@@ -22,3 +22,8 @@ jwt:
   secret: mFh3Q2pVYk9nZ3ZlS0t4T1JkR3l2b2h2Y3F1TzF5QzZtU1pGd1E9
   expiration: 60000000
   refresh-token-expiration : 60000000
+
+logging:
+  level:
+    root: INFO
+    com.meet.BE.controller.socket: DEBUG

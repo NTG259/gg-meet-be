@@ -3,8 +3,9 @@ package com.meet.BE.service;
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.enums.ParticipantStatus;
 import com.meet.BE.domain.enums.Role;
-import com.meet.BE.domain.message.MeetingMessage;
+import com.meet.BE.domain.message.MeetingWsMessage;
 import com.meet.BE.domain.request.CreateMeetingRequest;
+import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.domain.entity.Meeting;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.response.MeetingResponseDTO;
@@ -20,6 +21,7 @@ import io.livekit.server.RoomName;
 import io.livekit.server.RoomServiceClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,9 @@ public class MeetingService {
     private final MeetingParticipantRepository meetingParticipantRepository;
     private final MeetingRepository meetingRepository;
     private final RoomServiceClient roomServiceClient;
+    private final ParticipantService participantService;
+    private final SecurityService securityService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${livekit.api-key}")
     private String apiKey;
@@ -69,85 +74,148 @@ public class MeetingService {
         meeting.setRoomSid(meetingCode);
         Meeting savedMeeting = meetingRepository.save(meeting);
 
+        // [ĐÃ FIX LỖI]: Phải lưu cả Host vào bảng MeetingParticipant
+        MeetingParticipant hostParticipant = new MeetingParticipant();
+        hostParticipant.setMeeting(savedMeeting);
+        hostParticipant.setUser(host);
+        hostParticipant.setRole(Role.HOST);
+        hostParticipant.setParticipantStatus(ParticipantStatus.ACCEPT);
+        hostParticipant = meetingParticipantRepository.save(hostParticipant);
+
+        // Tạo Livekit Token cho Host
         AccessToken token = new AccessToken(apiKey, apiSecret);
         token.setName(host.getFullName());
         token.setIdentity(host.getId().toString());
         token.addGrants(new RoomJoin(true));
         token.addGrants(new RoomName(meetingCode));
-
         String livekitToken = token.toJwt();
 
-        return MeetingConvert.ToResponse(meeting, livekitToken);
+        MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, livekitToken);
+        response.setParticipantStatus(ParticipantStatus.ACCEPT);
+
+        // Tạo vé WebSocket Token (JWT Xịn)
+        String meetingToken = securityService.generateMeetingToken(
+                hostParticipant.getParticipantId(),
+                meetingCode,
+                Role.HOST.name() // Host tạo phòng nên mặc định truyền role HOST
+        );
+        response.setMeetingToken(meetingToken);
+
+        return response;
     }
 
     /**
-     * Tham gia vào một cuộc họp đã tồn tại
+     * Tham gia vào một cuộc họp đã tồn tại (Hỗ trợ cả User & Guest)
      */
-
     @Transactional
-    public MeetingResponseDTO joinMeeting(User participant, String meetingCode){
+    public MeetingResponseDTO processJoinMeeting(String email, String meetingCode, GuestJoinRequest guestRequest) {
         Meeting meeting = handleFindMeeting(meetingCode);
 
         if (meeting.getStatus() != MeetingStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
         }
 
+        // 1. Gọi ParticipantService xử lý phân quyền User/Guest, lưu DB, và tự động bắn WS cho Host
+        MeetingParticipant participant = participantService.handleParticipantJoin(email, meetingCode, guestRequest);
 
-        AccessToken token = new AccessToken(apiKey, apiSecret);
-        token.setName(participant.getFullName());
-        token.setIdentity(participant.getId().toString());
+        // 2. Map data cơ bản ra DTO
+        MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
+        response.setParticipantStatus(participant.getParticipantStatus());
 
-        token.addGrants(new RoomJoin(true));
-        token.addGrants(new RoomName(meetingCode));
+        // 3. Cấp Vé WebSocket (Dùng để Frontend connect STOMP)
+        String meetingToken = securityService.generateMeetingToken(
+                participant.getParticipantId(),
+                meetingCode,
+                participant.getRole().name()
+        );
+        response.setMeetingToken(meetingToken);
 
-        String livekitToken = token.toJwt();
+        // 4. CHỈ cấp LiveKit Token nếu người này là Host hoặc đã được ACCEPT
+        // (Nếu đang WAITING, token LiveKit sẽ bị null -> bảo mật tốt hơn, không cho khách lén vào phòng)
+        if (participant.getParticipantStatus() == ParticipantStatus.ACCEPT) {
+            AccessToken token = new AccessToken(apiKey, apiSecret);
 
-        MeetingParticipant meetingParticipant = new MeetingParticipant();
-        meetingParticipant.setMeeting(meeting);
-        meetingParticipant.setUser(participant);
-        if (meeting.getHost().getId() == participant.getId()) {
-            meetingParticipant.setRole(Role.HOST);
-            meetingParticipant.setParticipantStatus(ParticipantStatus.ACCEPT);
-        } else {
-            meetingParticipant.setRole(Role.PARTICIPANT);
-            meetingParticipant.setParticipantStatus(ParticipantStatus.WAITING);
+            // Xử lý tên và ID tuỳ thuộc vào User hay Guest
+            String displayName = participant.getUser() != null ?
+                    participant.getUser().getFullName() : participant.getGuestName();
+            String identity = participant.getUser() != null ?
+                    participant.getUser().getId().toString() : "guest-" + participant.getGuestId();
+
+            token.setName(displayName);
+            token.setIdentity(identity);
+            token.addGrants(new RoomJoin(true));
+            token.addGrants(new RoomName(meetingCode));
+
+            response.setLivekitToken(token.toJwt());
         }
-        this.meetingParticipantRepository.save(meetingParticipant);
-        return MeetingConvert.ToResponse(meeting, livekitToken);
+
+        return response;
+    }
+
+    private Meeting handleFindMeeting(String meetingCode) {
+        return this.meetingRepository.findByMeetingCode(meetingCode).orElseThrow(
+                () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
+        );
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void endMeeting(User currentUser, String meetingCode) throws Exception {
-        // 1. Tìm phòng trong Database
         Meeting meeting = meetingRepository.findByMeetingCode(meetingCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
 
-        // 2. Kiểm tra xem phòng còn hoạt động không
         if (meeting.getStatus() != MeetingStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.ROOM_NOT_FOUND); // Hoặc tạo thêm ErrorCode.ROOM_ALREADY_ENDED
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
         }
 
-        // 3. Kiểm tra quyền: Chỉ Host mới được kết thúc phòng
         if (!meeting.getHost().getId().equals(currentUser.getId())) {
-            // Cần có ErrorCode cho lỗi không đủ quyền, ở đây tạm dùng một lỗi chung hoặc bạn tự định nghĩa thêm
             throw new BusinessException(ErrorCode.NOT_PERMIT);
         }
 
-        // 4. Xóa phòng trên LiveKit Server
+        // 1. Xoá phòng LiveKit
         try {
             roomServiceClient.deleteRoom(meetingCode).execute();
         } catch (Exception e) {
+            // Log lỗi thay vì System.err
             System.err.println("LiveKit Room delete error: " + e.getMessage());
         }
 
+        // 2. Cập nhật DB
         meeting.setStatus(MeetingStatus.ENDED);
         meetingRepository.save(meeting);
+
+        // 3. BẮN THÔNG BÁO WEBSOCKET CHO TẤT CẢ MỌI NGƯỜI
+        MeetingWsMessage wsMsg = new MeetingWsMessage();
+        wsMsg.setMeetingCode(meetingCode);
+        wsMsg.setAction("MEETING_ENDED"); // Frontend sẽ check action này
+        // Đối với event End Meeting, bạn không cần set targetParticipantId vì gửi cho tất cả
+
+        // Gửi vào topic chung của meeting, ví dụ: /topic/meeting/123456
+        messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, wsMsg);
     }
 
-    public Meeting handleFindMeeting(String roomCode) {
-        return this.meetingRepository.findByMeetingCode(roomCode).orElseThrow(
-                () -> new BusinessException(ErrorCode.DATA_NOT_FOUND)
-        );
-    }
+    @Transactional(rollbackFor = Exception.class)
+    public void leaveMeeting(Long participantId, String meetingCode) {
+        // 1. Tìm bản ghi Participant trong DB
+        MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
 
+        // Kiểm tra xem có đúng là đang ở trong phòng này không
+        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
+            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+        }
+
+        // 2. Cập nhật trạng thái của người này thành LEFT (Đã rời đi)
+        // Lưu ý: Nhớ thêm LEFT vào file Enum ParticipantStatus nhé
+        participant.setParticipantStatus(ParticipantStatus.LEFT);
+        meetingParticipantRepository.save(participant);
+
+        // 3. BẮN THÔNG BÁO CHO NHỮNG NGƯỜI CÒN LẠI
+        MeetingWsMessage wsMsg = new MeetingWsMessage();
+        wsMsg.setMeetingCode(meetingCode);
+        wsMsg.setTargetParticipantId(participantId);
+        wsMsg.setAction("PARTICIPANT_LEFT"); // Frontend nghe action này để xóa lưới Video
+
+        // Broadcast vào phòng
+        messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, wsMsg);
+    }
 }

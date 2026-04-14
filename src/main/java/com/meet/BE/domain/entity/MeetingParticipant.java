@@ -25,7 +25,7 @@ public class MeetingParticipant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long participantId;
 
     // ===== RELATION =====
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -91,7 +91,7 @@ public class MeetingParticipant {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof MeetingParticipant)) return false;
-        return id != null && id.equals(((MeetingParticipant) o).getId());
+        return participantId != null && participantId.equals(((MeetingParticipant) o).getParticipantId());
     }
 
     @Override
