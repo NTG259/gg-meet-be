@@ -107,6 +107,51 @@ public class MeetingService {
     /**
      * Tham gia vào một cuộc họp đã tồn tại (Hỗ trợ cả User & Guest)
      */
+//    @Transactional
+//    public MeetingResponseDTO processJoinMeeting(String email, String meetingCode, GuestJoinRequest guestRequest) {
+//        Meeting meeting = handleFindMeeting(meetingCode);
+//
+//        if (meeting.getStatus() != MeetingStatus.ACTIVE) {
+//            throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
+//        }
+//
+//        // 1. Gọi ParticipantService xử lý phân quyền User/Guest, lưu DB, và tự động bắn WS cho Host
+//        MeetingParticipant participant = participantService.handleParticipantJoin(email, meetingCode, guestRequest);
+//
+//        // 2. Map data cơ bản ra DTO
+//        MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
+//        response.setParticipantStatus(participant.getParticipantStatus());
+//
+//        // 3. Cấp Vé WebSocket (Dùng để Frontend connect STOMP)
+//        String meetingToken = securityService.generateMeetingToken(
+//                participant.getParticipantId(),
+//                meetingCode,
+//                participant.getRole().name()
+//        );
+//        response.setMeetingToken(meetingToken);
+//
+//        // 4. CHỈ cấp LiveKit Token nếu người này là Host hoặc đã được ACCEPT
+//        // (Nếu đang WAITING, token LiveKit sẽ bị null -> bảo mật tốt hơn, không cho khách lén vào phòng)
+//        if (participant.getParticipantStatus() == ParticipantStatus.ACCEPT) {
+//            AccessToken token = new AccessToken(apiKey, apiSecret);
+//
+//            // Xử lý tên và ID tuỳ thuộc vào User hay Guest
+//            String displayName = participant.getUser() != null ?
+//                    participant.getUser().getFullName() : participant.getGuestName();
+//            String identity = participant.getUser() != null ?
+//                    participant.getUser().getId().toString() : "guest-" + participant.getGuestId();
+//
+//            token.setName(displayName);
+//            token.setIdentity(identity);
+//            token.addGrants(new RoomJoin(true));
+//            token.addGrants(new RoomName(meetingCode));
+//
+//            response.setLivekitToken(token.toJwt());
+//        }
+//
+//        return response;
+//    }
+
     @Transactional
     public MeetingResponseDTO processJoinMeeting(String email, String meetingCode, GuestJoinRequest guestRequest) {
         Meeting meeting = handleFindMeeting(meetingCode);
@@ -115,7 +160,7 @@ public class MeetingService {
             throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
         }
 
-        // 1. Gọi ParticipantService xử lý phân quyền User/Guest, lưu DB, và tự động bắn WS cho Host
+        // 1. Gọi ParticipantService xử lý tham gia, lưu DB
         MeetingParticipant participant = participantService.handleParticipantJoin(email, meetingCode, guestRequest);
 
         // 2. Map data cơ bản ra DTO
@@ -130,24 +175,21 @@ public class MeetingService {
         );
         response.setMeetingToken(meetingToken);
 
-        // 4. CHỈ cấp LiveKit Token nếu người này là Host hoặc đã được ACCEPT
-        // (Nếu đang WAITING, token LiveKit sẽ bị null -> bảo mật tốt hơn, không cho khách lén vào phòng)
-        if (participant.getParticipantStatus() == ParticipantStatus.ACCEPT) {
-            AccessToken token = new AccessToken(apiKey, apiSecret);
+        // 4. CẤP THẲNG LIVEKIT TOKEN (Không cần check phòng chờ nữa)
+        AccessToken token = new AccessToken(apiKey, apiSecret);
 
-            // Xử lý tên và ID tuỳ thuộc vào User hay Guest
-            String displayName = participant.getUser() != null ?
-                    participant.getUser().getFullName() : participant.getGuestName();
-            String identity = participant.getUser() != null ?
-                    participant.getUser().getId().toString() : "guest-" + participant.getGuestId();
+        // Xử lý tên và ID tuỳ thuộc vào User hay Guest
+        String displayName = participant.getUser() != null ?
+                participant.getUser().getFullName() : participant.getGuestName();
+        String identity = participant.getUser() != null ?
+                participant.getUser().getId().toString() : "guest-" + participant.getGuestId();
 
-            token.setName(displayName);
-            token.setIdentity(identity);
-            token.addGrants(new RoomJoin(true));
-            token.addGrants(new RoomName(meetingCode));
+        token.setName(displayName);
+        token.setIdentity(identity);
+        token.addGrants(new RoomJoin(true));
+        token.addGrants(new RoomName(meetingCode));
 
-            response.setLivekitToken(token.toJwt());
-        }
+        response.setLivekitToken(token.toJwt());
 
         return response;
     }
