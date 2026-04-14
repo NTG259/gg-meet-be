@@ -25,14 +25,12 @@ public class MeetingController {
     private final UserService userService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<MeetingResponseDTO>> createMeeting(
-            @RequestBody CreateMeetingRequest request
-    ) throws Exception {
+    public ResponseEntity<ApiResponse<MeetingResponseDTO>> createMeeting() throws Exception {
         String currentUserEmail = SecurityUtils.getCurrentUserLogin()
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
         User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
-        MeetingResponseDTO response = meetingService.createMeeting(currentUser, request);
+        MeetingResponseDTO response = meetingService.createMeeting(currentUser);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 new ApiResponse<>(response, "Tạo phòng thành công", null, HttpStatus.CREATED.value())

@@ -46,15 +46,14 @@ public class MeetingService {
     private String apiSecret;
 
     @Transactional(rollbackFor = Exception.class)
-    public MeetingResponseDTO createMeeting(User host, CreateMeetingRequest request) throws Exception {
+    public MeetingResponseDTO createMeeting(User host) throws Exception {
         String meetingCode = UUID.randomUUID().toString().substring(0, 10);
 
         livekit.LivekitRoom.CreateRoomRequest livekitRequest = livekit.LivekitRoom.CreateRoomRequest.newBuilder()
                 .setName(meetingCode)
-                .setEmptyTimeout(request.getEmptyTimeout())
-                .setDepartureTimeout(request.getDepartureTimeout())
-                .setMaxParticipants(request.getMaxParticipants())
-                .setMetadata(request.getMetadata())
+                .setEmptyTimeout(10000000)
+                .setDepartureTimeout(10000000)
+                .setMaxParticipants(50)
                 .build();
 
         roomServiceClient.createRoom(
@@ -68,9 +67,10 @@ public class MeetingService {
         Meeting meeting = new Meeting();
         meeting.setHost(host);
         meeting.setMeetingCode(meetingCode);
-        meeting.setTitle(request.getTitle());
+        meeting.setTitle("Phòng họp demo");
         meeting.setStatus(MeetingStatus.ACTIVE);
         meeting.setCreatedAt(LocalDateTime.now());
+        meeting.setStartTime(LocalDateTime.now());
         meeting.setRoomSid(meetingCode);
         Meeting savedMeeting = meetingRepository.save(meeting);
 

@@ -9,9 +9,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateMeetingRequest {
     private String title;
-    private Boolean isScheduled;
-    private int emptyTimeout;
-    private int departureTimeout;
-    private int maxParticipants;
-    private String metadata;
+//    private Boolean isScheduled;
+//    private int emptyTimeout;
+//    private int departureTimeout;
+//    private int maxParticipants;
+//    private String metadata;
 }

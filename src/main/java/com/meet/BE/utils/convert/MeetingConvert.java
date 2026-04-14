@@ -8,6 +8,7 @@ public class MeetingConvert {
     public static MeetingResponseDTO ToResponse(Meeting meeting, String liveKitToken) {
         MeetingResponseDTO response = new MeetingResponseDTO();
         UserResponseDTO host = new UserResponseDTO();
+        host.setId(meeting.getHost().getId());
         host.setFullName(meeting.getHost().getFullName());
         host.setEmail(meeting.getHost().getEmail());
         response.setHost(host);
