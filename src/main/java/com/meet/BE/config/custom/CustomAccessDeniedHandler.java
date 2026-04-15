@@ -1,4 +1,4 @@
-package com.meet.BE.config;
+package com.meet.BE.config.custom;
 
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.utils.errors.ErrorCode;

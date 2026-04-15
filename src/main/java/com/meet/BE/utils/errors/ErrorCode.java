@@ -24,7 +24,7 @@ public enum ErrorCode {
     // DATA
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
     EMAIL_ALREADY_EXIST(HttpStatus.CONFLICT, "Email đã được sử dụng"),
-
+    DATA_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "Thông tin truyền về chưa đầy đủ"),
     //VALIDATION
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Dữ liệu đầu vào không hợp lệ"),
 

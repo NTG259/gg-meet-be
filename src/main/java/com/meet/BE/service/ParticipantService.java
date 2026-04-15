@@ -41,7 +41,7 @@ public class ParticipantService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
 
         User user = null;
-        if (email != null) {
+        if (!email.equals("anonymousUser")) {
             user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
         }
@@ -52,7 +52,7 @@ public class ParticipantService {
                 || guestRequest.getGuestId().isBlank()
                 || guestRequest.getGuestName() == null
                 || guestRequest.getGuestName().isBlank())) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.DATA_NOT_ENOUGH);
         }
 
         boolean isHost = (user != null && user.getId().equals(meeting.getHost().getId()));
@@ -100,13 +100,13 @@ public class ParticipantService {
             newParticipant = meetingParticipantRepository.save(newParticipant);
 
             // 4. BẮN THÔNG BÁO WEBSOCKET CHO HOST (Phòng chờ)
-            MeetingWsMessage wsMsg = new MeetingWsMessage();
-            wsMsg.setMeetingCode(meetingCode);
-            wsMsg.setTargetParticipantId(newParticipant.getParticipantId());
-            wsMsg.setTargetName(displayName);
-            wsMsg.setAction("JOIN_REQUEST");
+            MeetingWsMessage socketMessage = new MeetingWsMessage();
+            socketMessage.setMeetingCode(meetingCode);
+            socketMessage.setTargetParticipantId(newParticipant.getParticipantId());
+            socketMessage.setTargetName(displayName);
+            socketMessage.setAction("JOIN_REQUEST");
 
-            messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode + "/waiting", wsMsg);
+            messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode + "/waiting", socketMessage);
 
             return newParticipant;
         }

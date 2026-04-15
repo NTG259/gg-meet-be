@@ -1,5 +1,7 @@
 package com.meet.BE.config;
 
+import com.meet.BE.config.custom.CustomAccessDeniedHandler;
+import com.meet.BE.config.custom.CustomAuthenticationEntryPoint;
 import com.meet.BE.service.SecurityService;
 import com.meet.BE.utils.security.CustomUserDetailsService;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
@@ -8,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -46,7 +49,6 @@ public class SecurityConfig {
                     }
                 }
             }
-            // Vẫn hỗ trợ đọc từ Header (phòng khi test Postman)
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 return authHeader.substring(7);
@@ -70,8 +72,9 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // Client API
-                        .requestMatchers("/api/meetings/**").hasAnyRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/meetings").hasRole("USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/meetings").hasRole("USER")
+                        .requestMatchers("/api/meetings/**").permitAll()
                         .anyRequest().permitAll()
                 )
 

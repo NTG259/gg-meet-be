@@ -8,17 +8,17 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalException {
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handleSystemException(Exception ex) {
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ApiResponse<>(
-                        null,
-                        ErrorCode.INTERNAL_SERVER_ERROR.getMessage(),
-                        ErrorCode.INTERNAL_SERVER_ERROR.name(),
-                        ErrorCode.INTERNAL_SERVER_ERROR.getStatus().value()
-                ));
-    }
+//    @ExceptionHandler(Exception.class)
+//    public ResponseEntity<ApiResponse<Object>> handleSystemException(Exception ex) {
+//        return ResponseEntity
+//                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                .body(new ApiResponse<>(
+//                        null,
+//                        ErrorCode.INTERNAL_SERVER_ERROR.getMessage(),
+//                        ErrorCode.INTERNAL_SERVER_ERROR.name(),
+//                        ErrorCode.INTERNAL_SERVER_ERROR.getStatus().value()
+//                ));
+//    }
 
     // Xử lý lỗi Business
     @ExceptionHandler(BusinessException.class)

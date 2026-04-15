@@ -1,4 +1,4 @@
-package com.meet.BE.config;
+package com.meet.BE.config.custom;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
