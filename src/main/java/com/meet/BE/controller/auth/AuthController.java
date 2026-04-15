@@ -175,4 +175,15 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
                 .build();
     }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+        // Có thể catch ngoại lệ ở đây để trả về redirect sang trang báo lỗi của FE
+        // Nhưng nếu dùng GlobalExceptionHandler (@RestControllerAdvice) thì cứ để nó văng exception
+        securityService.verifyEmailToken(token);
+
+        // Trả về JSON thành công HOẶC redirect về trang Login Frontend (Khuyên dùng)
+        // return ResponseEntity.status(HttpStatus.FOUND).location(URI.create("http://localhost:3000/login?verified=true")).build();
+        return ResponseEntity.ok("Tài khoản của bạn đã được kích hoạt thành công!");
+    }
 }

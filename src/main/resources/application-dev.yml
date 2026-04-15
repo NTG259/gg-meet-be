@@ -11,6 +11,17 @@ spring:
           google:
             client-id: 398298244316-jnf8fnoa639l529n82bbqjdo6l8dtejs.apps.googleusercontent.com
             client-secret: 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
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: truonggiang29122005@gmail.com
+    password: ozwyrsnjsvqynzkm
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 livekit:
   api-key: devkey
@@ -27,3 +38,6 @@ logging:
   level:
     root: INFO
     com.meet.BE.controller.socket: DEBUG
+
+app:
+  base-url: http://localhost:8080

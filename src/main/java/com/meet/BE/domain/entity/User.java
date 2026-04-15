@@ -37,7 +37,7 @@ public class User {
     @Column(nullable = true)
     private String providerId;
 
-    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT true")
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT false")
     private Boolean enabled;
 
     @Column(nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'USER'")
@@ -56,7 +56,7 @@ public class User {
 
     public User() {
         this.authProvider = AuthProvider.LOCAL;
-        this.enabled = true;
+        this.enabled = false;
         this.role = "USER";
     }
 }

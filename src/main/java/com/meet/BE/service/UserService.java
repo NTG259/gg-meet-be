@@ -3,7 +3,9 @@ package com.meet.BE.service;
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.dto.CreateUserDTO;
 import com.meet.BE.domain.entity.User;
+import com.meet.BE.domain.entity.VerificationToken;
 import com.meet.BE.domain.response.UserResponseDTO;
+import com.meet.BE.repository.TokenRepository;
 import com.meet.BE.repository.UserRepository;
 import com.meet.BE.utils.convert.UserConvert;
 import com.meet.BE.utils.errors.BusinessException;
@@ -13,11 +15,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenRepository tokenRepository;
+    private final EmailService emailService;
 
     public ApiResponse<UserResponseDTO> createUser(CreateUserDTO userDto) {
         if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
@@ -28,16 +34,30 @@ public class UserService {
         newUser.setEmail(userDto.getEmail());
         newUser.setFullName(userDto.getFullName());
         newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
-
         newUser = this.userRepository.save(newUser);
-        return new ApiResponse<>(UserConvert.convertToUserResponseDTO(newUser), "Tạo người dùng thành công", null, HttpStatus.CREATED.value());
+
+        String token = UUID.randomUUID().toString();
+        VerificationToken verificationToken = new VerificationToken(token, newUser);
+        tokenRepository.save(verificationToken);
+
+        // 3. Gửi Mail
+        emailService.sendVerificationEmail(newUser.getEmail(), token);
+        return new ApiResponse<>(
+                UserConvert.convertToUserResponseDTO(newUser),
+                "Đăng ký thành công. Vui lòng kiểm tra email để xác thực.",
+                null,
+                HttpStatus.CREATED.value());
     }
 
     public ApiResponse<UserResponseDTO> getUserById(Long id) {
         User user = this.userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        return new ApiResponse<>(UserConvert.convertToUserResponseDTO(user), "Lấy thông tin thành công", null, HttpStatus.OK.value());
+        return new ApiResponse<>(
+                UserConvert.convertToUserResponseDTO(user),
+                "Lấy thông tin thành công",
+                null,
+                HttpStatus.OK.value());
     }
 
 

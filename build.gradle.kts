@@ -33,6 +33,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-websocket")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter")
+	implementation("org.springframework.boot:spring-boot-starter-mail")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	implementation ("org.springframework.boot:spring-boot-starter")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -47,6 +48,7 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-websocket-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-mail-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
