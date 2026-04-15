@@ -14,10 +14,7 @@ import com.meet.BE.repository.MeetingRepository;
 import com.meet.BE.utils.convert.MeetingConvert;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
-import io.livekit.server.AccessToken;
-import io.livekit.server.RoomJoin;
-import io.livekit.server.RoomName;
-import io.livekit.server.RoomServiceClient;
+import io.livekit.server.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -89,6 +86,8 @@ public class MeetingService {
         token.setIdentity(host.getId().toString());
         token.addGrants(new RoomJoin(true));
         token.addGrants(new RoomName(meetingCode));
+        token.addGrants(new CanPublish(true));
+        token.addGrants(new CanUpdateOwnMetadata(true));
         String livekitToken = token.toJwt();
 
         MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, livekitToken);
