@@ -24,10 +24,13 @@ public class VerificationToken {
 
     private LocalDateTime expiryDate;
 
+    private String email;
+    private Boolean statusVerify;
+
     public VerificationToken(String token, User user) {
         this.token = token;
         this.user = user;
-        // Set thời gian hết hạn là 24h từ lúc tạo
-        this.expiryDate = LocalDateTime.now().plusHours(24);
+        this.expiryDate = LocalDateTime.now().plusMinutes(10);
+        statusVerify = false;
     }
 }

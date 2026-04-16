@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.UUID;
 
 @Service
@@ -36,7 +37,10 @@ public class UserService {
         newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
         newUser = this.userRepository.save(newUser);
 
-        String verifyToken = UUID.randomUUID().toString();
+        SecureRandom secureRandom = new SecureRandom();
+        int randomCode = 100000 + secureRandom.nextInt(900000);
+        String verifyToken = String.valueOf(randomCode);
+
         VerificationToken verificationToken = new VerificationToken(verifyToken, newUser);
         tokenRepository.save(verificationToken);
 

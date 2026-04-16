@@ -178,7 +178,7 @@ public class AuthController {
                 .build();
     }
 
-    @GetMapping("/verify-email")
+    @PostMapping("/verify-email")
     public ResponseEntity<ApiResponse<?>> verifyEmail(@RequestParam("token") String token) {
         try {
             securityService.verifyEmailToken(token);

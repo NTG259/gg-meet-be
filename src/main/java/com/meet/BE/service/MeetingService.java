@@ -4,6 +4,7 @@ import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.enums.ParticipantStatus;
 import com.meet.BE.domain.enums.Role;
 import com.meet.BE.domain.message.MeetingWsMessage;
+import com.meet.BE.domain.request.CreateMeetingRequest;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.domain.entity.Meeting;
 import com.meet.BE.domain.entity.User;
@@ -47,13 +48,14 @@ public class MeetingService {
     private String apiSecret;
 
     @Transactional(rollbackFor = Exception.class)
-    public MeetingResponseDTO createMeeting(User host) throws Exception {
+    public MeetingResponseDTO createMeeting(User host, String title) throws Exception {
+        CreateMeetingRequest createMeetingRequest = new CreateMeetingRequest(title);
         String meetingCode = UUID.randomUUID().toString().substring(0, 10);
         livekit.LivekitRoom.CreateRoomRequest livekitRequest = livekit.LivekitRoom.CreateRoomRequest.newBuilder()
                 .setName(meetingCode)
-                .setEmptyTimeout(10000000)
-                .setDepartureTimeout(10000000)
-                .setMaxParticipants(50)
+                .setEmptyTimeout(createMeetingRequest.getEmptyTimeout())
+                .setDepartureTimeout(createMeetingRequest.getDepartureTimeout())
+                .setMaxParticipants(createMeetingRequest.getMaxParticipants())
                 .build();
 
         roomServiceClient.createRoom(
@@ -67,7 +69,7 @@ public class MeetingService {
         Meeting meeting = new Meeting();
         meeting.setHost(host);
         meeting.setMeetingCode(meetingCode);
-        meeting.setTitle("Phòng họp demo");
+        meeting.setTitle(createMeetingRequest.getTitle());
         meeting.setStatus(MeetingStatus.ACTIVE);
         meeting.setCreatedAt(LocalDateTime.now());
         meeting.setStartTime(LocalDateTime.now());
@@ -99,7 +101,7 @@ public class MeetingService {
 
         MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, livekitToken);
         response.setParticipantStatus(ParticipantStatus.ACCEPT);
-
+        response.setTitle(meeting.getTitle());
         // Tạo vé WebSocket Token (JWT Xịn)
         String meetingToken = securityService.generateMeetingToken(
                 hostParticipant.getParticipantId(),
