@@ -16,8 +16,10 @@ import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import io.livekit.server.*;
 import lombok.RequiredArgsConstructor;
+import lombok.val;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -84,10 +86,15 @@ public class MeetingService {
         AccessToken token = new AccessToken(apiKey, apiSecret);
         token.setName(host.getFullName());
         token.setIdentity(host.getId().toString());
-        token.addGrants(new RoomJoin(true));
-        token.addGrants(new RoomName(meetingCode));
-        token.addGrants(new CanPublish(true));
-        token.addGrants(new CanUpdateOwnMetadata(true));
+        token.addGrants(
+                new VideoGrant[]{
+                        new RoomJoin(true),
+                        new RoomName(meetingCode),
+                        new CanPublish(true),
+                        new CanSubscribe(true),
+                        new CanUpdateOwnMetadata(true),
+                }
+        );
         String livekitToken = token.toJwt();
 
         MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, livekitToken);
@@ -143,9 +150,15 @@ public class MeetingService {
 
             token.setName(displayName);
             token.setIdentity(identity);
-            token.addGrants(new RoomJoin(true));
-            token.addGrants(new RoomName(meetingCode));
-
+            token.addGrants(
+                    new VideoGrant[]{
+                            new RoomJoin(true),
+                            new RoomName(meetingCode),
+                            new CanPublish(true),
+                            new CanSubscribe(true),
+                            new CanUpdateOwnMetadata(true),
+                    }
+            );
             // Set role cho User tham gia Host : Participant
             String roleName = participant.getRole() != null ? participant.getRole().name() : Role.PARTICIPANT.toString();
             ObjectMapper objectMapper = new ObjectMapper();

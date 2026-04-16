@@ -22,6 +22,9 @@ spring:
           auth: true
           starttls:
             enable: true
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
 
 livekit:
   api-key: devkey
@@ -41,3 +44,4 @@ logging:
 
 app:
   base-url: http://localhost:8080
+

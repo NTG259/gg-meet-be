@@ -82,7 +82,7 @@ public class ParticipantService {
         String displayName;
         if (user != null) {
             newParticipant.setUser(user);
-            displayName = user.getFullName(); // Giả sử User có hàm getName()
+            displayName = user.getFullName();
         } else {
             newParticipant.setGuestId(guestRequest.getGuestId());
             newParticipant.setGuestName(guestRequest.getGuestName());

@@ -9,6 +9,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.io.UnsupportedEncodingException;
 
@@ -18,7 +20,7 @@ import java.io.UnsupportedEncodingException;
 public class EmailService {
 
     private final JavaMailSender mailSender;
-
+    private final TemplateEngine templateEngine;
     // Chỉ định dùng Pool đã tạo ở AsyncConfig
     @Async("mailTaskExecutor")
     public void sendVerificationEmail(String toEmail, String confirmationUrl) {
@@ -27,19 +29,16 @@ public class EmailService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
             // Có tên ứng dụng rõ ràng, tránh spam
-            helper.setFrom("noreply@googlemeetclone.com", "Google Meet Clone");
+            helper.setFrom("noreply@googlemeetclone.com", "Kallio");
             helper.setTo(toEmail);
             helper.setSubject("Xác thực tài khoản của bạn");
 
-            // HTML Template (Tương lai có thể dùng Thymeleaf ở đây)
-            String htmlContent = "<div style='font-family: Arial, sans-serif; text-align: center;'>"
-                    + "<h2>Chào mừng bạn đến với hệ thống!</h2>"
-                    + "<p>Vui lòng click vào nút bên dưới để kích hoạt tài khoản:</p>"
-                    + "<a href='" + confirmationUrl + "' style='padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;'>Xác Thực Tài Khoản</a>"
-                    + "<p style='color: #777; margin-top: 20px;'>Link này sẽ hết hạn sau 15 phút.</p>"
-                    + "</div>";
+            Context context = new Context();
+            context.setVariable("confirmationUrl", confirmationUrl);
 
+            String htmlContent = templateEngine.process("email/active-email", context);
             helper.setText(htmlContent, true);
+
             mailSender.send(message);
 
             log.info("Đã gửi email xác thực thành công tới: {}", toEmail);

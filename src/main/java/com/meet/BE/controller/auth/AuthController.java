@@ -28,6 +28,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("api/auth")
@@ -178,12 +180,14 @@ public class AuthController {
 
     @GetMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
-        // Có thể catch ngoại lệ ở đây để trả về redirect sang trang báo lỗi của FE
-        // Nhưng nếu dùng GlobalExceptionHandler (@RestControllerAdvice) thì cứ để nó văng exception
-        securityService.verifyEmailToken(token);
+        try {
+            securityService.verifyEmailToken(token);
+            // Trả về JSON thành công HOẶC redirect về trang Login Frontend (Khuyên dùng)
+            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create("http://localhost:3000/login?verified=true")).build();
+//        return ResponseEntity.ok("Tài khoản của bạn đã được kích hoạt thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create("http://localhost:3000/login?verified=true")).build();
+        }
 
-        // Trả về JSON thành công HOẶC redirect về trang Login Frontend (Khuyên dùng)
-        // return ResponseEntity.status(HttpStatus.FOUND).location(URI.create("http://localhost:3000/login?verified=true")).build();
-        return ResponseEntity.ok("Tài khoản của bạn đã được kích hoạt thành công!");
     }
 }

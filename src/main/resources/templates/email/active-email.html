@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Xác Thực Tài Khoản</title>
+</head>
+<body>
+<div style="font-family: Arial, sans-serif; text-align: center;">
+    <h2>Chào mừng bạn đến với hệ thống!</h2>
+    <p>Vui lòng click vào nút bên dưới để kích hoạt tài khoản:</p>
+
+    <a th:href="${confirmationUrl}"
+       style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+        Xác Thực Tài Khoản
+    </a>
+
+    <p style="color: #777; margin-top: 20px;">Link này sẽ hết hạn sau 15 phút.</p>
+</div>
+</body>
+</html>

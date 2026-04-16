@@ -26,7 +26,7 @@ public class UserService {
     private final EmailService emailService;
 
     public ApiResponse<UserResponseDTO> createUser(CreateUserDTO userDto) {
-        if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
+        if (userRepository.findByEmailAndEnabled(userDto.getEmail(), true).isPresent()) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXIST);
         }
 
@@ -40,8 +40,9 @@ public class UserService {
         VerificationToken verificationToken = new VerificationToken(token, newUser);
         tokenRepository.save(verificationToken);
 
+        String verifyLink = "http://localhost:8080/api/auth/verify-email?token=" + token;
         // 3. Gửi Mail
-        emailService.sendVerificationEmail(newUser.getEmail(), token);
+        emailService.sendVerificationEmail(newUser.getEmail(), verifyLink);
         return new ApiResponse<>(
                 UserConvert.convertToUserResponseDTO(newUser),
                 "Đăng ký thành công. Vui lòng kiểm tra email để xác thực.",
