@@ -179,14 +179,29 @@ public class AuthController {
     }
 
     @GetMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<ApiResponse<?>> verifyEmail(@RequestParam("token") String token) {
         try {
             securityService.verifyEmailToken(token);
             // Trả về JSON thành công HOẶC redirect về trang Login Frontend (Khuyên dùng)
-            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create("http://localhost:3000/login?verified=true")).build();
-//        return ResponseEntity.ok("Tài khoản của bạn đã được kích hoạt thành công!");
+            return ResponseEntity.status(HttpStatus.FOUND).
+                    body(
+                            new ApiResponse<>(
+                                    null,
+                                    "Xác thực email thành công",
+                                    null,
+                                    HttpStatus.FOUND.value()
+                            )
+                    );
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create("http://localhost:3000/login?verified=true")).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).
+                    body(
+                            new ApiResponse<>(
+                                    null,
+                                    "Xác thực email thất bại",
+                                    null,
+                                    HttpStatus.NOT_FOUND.value()
+                            )
+                    );
         }
 
     }

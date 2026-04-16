@@ -135,6 +135,7 @@ public class ParticipantService {
         return meetingParticipantRepository.save(participant);
     }
 
+    @Transactional
     public MeetingParticipant reject(Long actorParticipantId, Long participantId, String meetingCode) {
         // Kiểm tra xem có đúng là host không ? Nếu không phải throw Exception
         assertHostActionPermission(actorParticipantId, meetingCode);
