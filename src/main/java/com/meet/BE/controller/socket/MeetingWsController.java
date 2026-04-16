@@ -68,14 +68,22 @@ public class MeetingWsController {
             // Từ chối cũng kiểm tra cùng cơ chế quyền HOST như luồng duyệt.
             participantService.reject(hostParticipantId, msg.getTargetParticipantId(), msg.getMeetingCode());
 
+            // 1. Gửi tin nhắn RIÊNG cho người bị từ chối
             msg.setAction("REJECTED");
-
-            // Gửi tin nhắn RIÊNG cho người bị từ chối
             messagingTemplate.convertAndSend(
                     "/topic/meeting/" + msg.getMeetingCode() + "/participant/" + msg.getTargetParticipantId(),
                     msg
             );
             log.info("Sent reject message to participant topic: {}", msg.getTargetParticipantId());
+
+            // 2. Gửi tin nhắn báo thành công về lại cho HOST
+            // Đổi action để Frontend của Host phân biệt được sự kiện này và trigger fetch lại danh sách chờ
+            msg.setAction("REJECT_SUCCESS");
+            messagingTemplate.convertAndSend(
+                    "/topic/meeting/" + msg.getMeetingCode() + "/participant/" + hostParticipantId,
+                    msg
+            );
+            log.info("Sent reject success update to host topic: {}", hostParticipantId);
 
         } catch (RuntimeException e) {
             log.error("REJECT failed: targetParticipantId={}, error={}",

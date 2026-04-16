@@ -23,7 +23,7 @@ public class EmailService {
     private final TemplateEngine templateEngine;
     // Chỉ định dùng Pool đã tạo ở AsyncConfig
     @Async("mailTaskExecutor")
-    public void sendVerificationEmail(String toEmail, String confirmationUrl) {
+    public void sendVerificationEmail(String toEmail, String verifyToken) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -34,7 +34,7 @@ public class EmailService {
             helper.setSubject("Xác thực tài khoản của bạn");
 
             Context context = new Context();
-            context.setVariable("confirmationUrl", confirmationUrl);
+            context.setVariable("Verify Code: ", verifyToken);
 
             String htmlContent = templateEngine.process("email/active-email", context);
             helper.setText(htmlContent, true);

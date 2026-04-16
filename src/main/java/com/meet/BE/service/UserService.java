@@ -36,13 +36,12 @@ public class UserService {
         newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
         newUser = this.userRepository.save(newUser);
 
-        String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = new VerificationToken(token, newUser);
+        String verifyToken = UUID.randomUUID().toString();
+        VerificationToken verificationToken = new VerificationToken(verifyToken, newUser);
         tokenRepository.save(verificationToken);
 
-        String verifyLink = "http://localhost:8080/api/auth/verify-email?token=" + token;
         // 3. Gửi Mail
-        emailService.sendVerificationEmail(newUser.getEmail(), verifyLink);
+        emailService.sendVerificationEmail(newUser.getEmail(), verifyToken);
         return new ApiResponse<>(
                 UserConvert.convertToUserResponseDTO(newUser),
                 "Đăng ký thành công. Vui lòng kiểm tra email để xác thực.",
