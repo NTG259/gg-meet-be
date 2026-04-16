@@ -69,19 +69,29 @@ public class MeetingWsController {
             participantService.reject(hostParticipantId, msg.getTargetParticipantId(), msg.getMeetingCode());
 
             // 1. Gửi tin nhắn RIÊNG cho người bị từ chối
-            msg.setAction("REJECTED");
+            MeetingWsMessage messageParticipant = new MeetingWsMessage();
+            messageParticipant.setAction("REJECTED");
+            messageParticipant.setMeetingCode(msg.getMeetingCode());
+            messageParticipant.setTargetParticipantId(msg.getTargetParticipantId());
+            messageParticipant.setTargetName(msg.getTargetName());
             messagingTemplate.convertAndSend(
-                    "/topic/meeting/" + msg.getMeetingCode() + "/participant/" + msg.getTargetParticipantId(),
-                    msg
+                    "/topic/meeting/" + messageParticipant.getMeetingCode()
+                            + "/participant/" + messageParticipant.getTargetParticipantId(),
+                    messageParticipant
             );
             log.info("Sent reject message to participant topic: {}", msg.getTargetParticipantId());
 
             // 2. Gửi tin nhắn báo thành công về lại cho HOST
             // Đổi action để Frontend của Host phân biệt được sự kiện này và trigger fetch lại danh sách chờ
-            msg.setAction("REJECT_SUCCESS");
+            MeetingWsMessage messageHost = new MeetingWsMessage();
+            messageHost.setAction("REJECT_SUCCESS");
+            messageHost.setMeetingCode(msg.getMeetingCode());
+            messageHost.setTargetParticipantId(msg.getTargetParticipantId());
+            messageHost.setTargetName(msg.getTargetName());
             messagingTemplate.convertAndSend(
-                    "/topic/meeting/" + msg.getMeetingCode() + "/participant/" + hostParticipantId,
-                    msg
+                    "/topic/meeting/" + messageHost.getMeetingCode()
+                            + "/participant/" + hostParticipantId,
+                    messageHost
             );
             log.info("Sent reject success update to host topic: {}", hostParticipantId);
 

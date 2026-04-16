@@ -182,7 +182,6 @@ public class AuthController {
     public ResponseEntity<ApiResponse<?>> verifyEmail(@RequestParam("token") String token) {
         try {
             securityService.verifyEmailToken(token);
-            // Trả về JSON thành công HOẶC redirect về trang Login Frontend (Khuyên dùng)
             return ResponseEntity.status(HttpStatus.FOUND).
                     body(
                             new ApiResponse<>(

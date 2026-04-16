@@ -28,24 +28,24 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            // Có tên ứng dụng rõ ràng, tránh spam
             helper.setFrom("noreply@googlemeetclone.com", "Kallio");
             helper.setTo(toEmail);
-            helper.setSubject("Xác thực tài khoản của bạn");
+
+            helper.setSubject("Mã xác thực tài khoản Kallio của bạn");
 
             Context context = new Context();
-            context.setVariable("Verify Code: ", verifyToken);
+
+            context.setVariable("verifyCode", verifyToken);
 
             String htmlContent = templateEngine.process("email/active-email", context);
             helper.setText(htmlContent, true);
 
             mailSender.send(message);
 
-            log.info("Đã gửi email xác thực thành công tới: {}", toEmail);
+            log.info("Đã gửi email chứa mã xác thực thành công tới: {}", toEmail);
 
         } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("Lỗi khi gửi email xác thực tới {}: {}", toEmail, e.getMessage());
-            // Ném Custom Exception để Controller Advice bắt lại (nếu cần)
             throw new EmailSendingException("Không thể gửi email xác thực. Vui lòng thử lại sau.", e);
         }
     }
