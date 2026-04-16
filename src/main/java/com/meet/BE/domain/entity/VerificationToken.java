@@ -17,19 +17,14 @@ public class VerificationToken {
 
     private String token;
 
-    // Liên kết với bảng User của bạn
-    @OneToOne(targetEntity = User.class, fetch = FetchType.EAGER)
-    @JoinColumn(nullable = false, name = "user_id")
-    private User user;
-
     private LocalDateTime expiryDate;
 
     private String email;
     private Boolean statusVerify;
 
-    public VerificationToken(String token, User user) {
+    public VerificationToken(String token, String email) {
         this.token = token;
-        this.user = user;
+        this.email = email;
         this.expiryDate = LocalDateTime.now().plusMinutes(10);
         statusVerify = false;
     }

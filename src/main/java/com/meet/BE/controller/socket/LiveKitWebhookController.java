@@ -3,6 +3,7 @@ package com.meet.BE.controller.socket;
 import io.livekit.server.WebhookReceiver;
 import livekit.LivekitWebhook;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/livekit")
 @RequiredArgsConstructor
+@Slf4j
 public class LiveKitWebhookController {
 
     @Value("${livekit.api-key}")
@@ -56,7 +58,7 @@ public class LiveKitWebhookController {
             logMsg.append(" | Track SID: ").append(event.getTrack().getSid())
                     .append(" (").append(event.getTrack().getType()).append(")");
 
-//            log.info
+            log.info(logMsg.toString());
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {

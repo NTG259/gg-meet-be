@@ -14,8 +14,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -26,6 +29,7 @@ public class UserService {
     private final TokenRepository tokenRepository;
     private final EmailService emailService;
 
+    @Transactional
     public ApiResponse<UserResponseDTO> createUser(CreateUserDTO userDto) {
         if (userRepository.findByEmailAndEnabled(userDto.getEmail(), true).isPresent()) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXIST);
@@ -35,20 +39,22 @@ public class UserService {
         newUser.setEmail(userDto.getEmail());
         newUser.setFullName(userDto.getFullName());
         newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
+
+
+        VerificationToken token = tokenRepository.findByToken(userDto.getVerifyCode()).orElseThrow(
+                () -> new BusinessException(ErrorCode.BAD_CREDENTIALS)
+        );
+
+        if (!Objects.equals(token.getEmail(), userDto.getEmail()) || token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+
+        tokenRepository.delete(token);
+        newUser.setEnabled(true);
         newUser = this.userRepository.save(newUser);
-
-        SecureRandom secureRandom = new SecureRandom();
-        int randomCode = 100000 + secureRandom.nextInt(900000);
-        String verifyToken = String.valueOf(randomCode);
-
-        VerificationToken verificationToken = new VerificationToken(verifyToken, newUser);
-        tokenRepository.save(verificationToken);
-
-        // 3. Gửi Mail
-        emailService.sendVerificationEmail(newUser.getEmail(), verifyToken);
         return new ApiResponse<>(
                 UserConvert.convertToUserResponseDTO(newUser),
-                "Đăng ký thành công. Vui lòng kiểm tra email để xác thực.",
+                "Đăng ký thành công.",
                 null,
                 HttpStatus.CREATED.value());
     }

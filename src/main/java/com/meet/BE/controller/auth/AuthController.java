@@ -202,6 +202,20 @@ public class AuthController {
                             )
                     );
         }
+    }
+
+    @PostMapping("/send-verify-code")
+    public ResponseEntity<ApiResponse<?>> sendVerifyCode(@RequestParam("email") String email) {
+        securityService.sendVerifyCode(email);
+        return ResponseEntity.status(HttpStatus.OK).
+                body(
+                        new ApiResponse<>(
+                        null,
+                        "Đã gửi mã xác thực tới " + email,
+                        null,
+                        HttpStatus.OK.value()
+                        )
+                    );
 
     }
 }

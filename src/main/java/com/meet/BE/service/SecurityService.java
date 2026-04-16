@@ -6,9 +6,11 @@ import com.meet.BE.domain.response.LoginResponse;
 import com.meet.BE.repository.TokenRepository;
 import com.meet.BE.repository.UserRepository;
 import com.meet.BE.utils.errors.AuthException;
+import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import com.nimbusds.jose.util.Base64;
 import lombok.RequiredArgsConstructor;
+import lombok.val;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
@@ -18,12 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +36,7 @@ public class SecurityService {
     private final JwtEncoder jwtEncoder;
     private final TokenRepository tokenRepository;
     private final UserRepository userRepository;
+    private final EmailService emailService;
 
     @Value("${jwt.secret}")
     private String jwtKey;
@@ -134,7 +139,11 @@ public class SecurityService {
     public void verifyEmailToken(String token) {
         VerificationToken verificationToken = tokenRepository.findByToken(token)
                 .orElseThrow(() -> new AuthException(ErrorCode.INVALID_TOKEN));
+        String email = verificationToken.getEmail();
 
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXIST);
+        }
         // Kiểm tra hết hạn
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             // Xóa token cũ rác đi để tối ưu DB
@@ -142,12 +151,28 @@ public class SecurityService {
             throw new AuthException(ErrorCode.EXPIRED_TOKEN);
         }
 
-        // Kích hoạt User
-        User user = verificationToken.getUser();
-        user.setEnabled(true);
-        userRepository.save(user);
-
-        // Xóa token sau khi sử dụng thành công (Best practice)
         tokenRepository.delete(verificationToken);
+    }
+
+    @Transactional
+    public void sendVerifyCode(String email) {
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXIST);
+        }
+        SecureRandom secureRandom = new SecureRandom();
+        int randomCode = 100000 + secureRandom.nextInt(900000);
+        String verifyCode = String.valueOf(randomCode);
+        Optional<VerificationToken> verificationToken = this.tokenRepository.findByEmail(email);
+        // Tính năng gửi lại mã xác thực sẽ ghi đè
+        if (verificationToken.isPresent()) {
+            VerificationToken verificationTokenOverride = verificationToken.get();
+            verificationTokenOverride.setToken(verifyCode);
+            tokenRepository.save(verificationTokenOverride);
+        } else {
+            // Gửi mã lần đầu
+            VerificationToken verificationCode = new VerificationToken(verifyCode, email);
+            tokenRepository.save(verificationCode);
+        }
+        emailService.sendVerificationEmail(email, verifyCode);
     }
 }

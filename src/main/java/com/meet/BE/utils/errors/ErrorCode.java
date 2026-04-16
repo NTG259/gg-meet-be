@@ -6,35 +6,36 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     //AUTH
-    BAD_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng"),
-    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn chưa đăng nhập"),
-    ACCESS_DENIED(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập"),
-    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Token không hợp lệ"),
-    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "Token đã hết hạn"),
-    USER_DISABLED(HttpStatus.BAD_REQUEST, "Tài khoản đã bị khóa"),
-    USER_LOCKED(HttpStatus.BAD_REQUEST, "Tài khoản đã bị khóa"),
+    BAD_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Incorrect email or password"),
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "User is not authenticated"),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "Access denied"),
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid token or has expired"),
+    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "Token has expired"),
+    USER_DISABLED(HttpStatus.BAD_REQUEST, "Account is disabled"),
+    USER_LOCKED(HttpStatus.BAD_REQUEST, "Account is locked"),
 
-    //ROOM
-    ROOM_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Phòng đã tồn tại"),
-    ROOM_CANNOT_BE_CREATED(HttpStatus.BAD_REQUEST, "Lỗi không tạo được phòng"),
-    ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Phòng họp không tồn tại"),
-    NOT_PERMIT(HttpStatus.BAD_REQUEST, "Chỉ chủ phòng có quyền"),
-    USER_NOT_IN_THIS_ROOM(HttpStatus.BAD_REQUEST, "Người dùng này không thuộc phòng họp hiện tại"),
+    // ROOM
+    ROOM_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Room already exists"),
+    ROOM_CANNOT_BE_CREATED(HttpStatus.BAD_REQUEST, "Room cannot be created"),
+    ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Meeting room not found"),
+    NOT_PERMIT(HttpStatus.BAD_REQUEST, "Only the room owner has permission"),
+    USER_NOT_IN_THIS_ROOM(HttpStatus.BAD_REQUEST, "User is not in the current meeting room"),
 
     // DATA
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
-    EMAIL_ALREADY_EXIST(HttpStatus.CONFLICT, "Email đã được sử dụng"),
-    DATA_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "Thông tin truyền về chưa đầy đủ"),
-    //VALIDATION
-    VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Dữ liệu đầu vào không hợp lệ"),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
+    EMAIL_ALREADY_EXIST(HttpStatus.CONFLICT, "Email is already in use"),
+    DATA_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "Insufficient data provided"),
+
+    // VALIDATION
+    VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Invalid input data"),
 
     // SYSTEM
-    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Hệ thống gặp lỗi không mong muốn"),
-    ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND, "Đường dẫn không hợp lệ"),
-    DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "Dữ liệu không tồn tại"),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected internal server error"),
+    ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND, "Endpoint not found"),
+    DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "Data not found"),
 
-    INVALID_STATUS(HttpStatus.BAD_REQUEST, "Trạng thái không hợp lệ"),
-    MEETING_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "Phòng họp đã kết thúc");
+    INVALID_STATUS(HttpStatus.BAD_REQUEST, "Invalid status"),
+    MEETING_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "Meeting has already ended");
     private final HttpStatus status;
     private final String message;
     ErrorCode(HttpStatus status, String message) {
