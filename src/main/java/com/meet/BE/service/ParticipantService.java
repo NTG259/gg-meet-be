@@ -191,7 +191,7 @@ public class ParticipantService {
 
         Long hostParticipantId = meetingRepository.findByMeetingCode(meetingCode).orElseThrow(
                 () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
-        ).getId();
+        ).getHost().getId();
         messagingTemplate.convertAndSend(
                 "/topic/meeting/" + meetingCode + "/participant/" + hostParticipantId,
                 messageHost
