@@ -103,30 +103,18 @@ public class MeetingWsController {
     }
 
     @MessageMapping("/meeting/cancel-join")
-    public void cancelJoin(SimpMessageHeaderAccessor headerAccessor,
-                           MeetingWsMessage msg) {
-        // Lấy ID của Host thao tác từ WebSocket Session (đã lưu lúc check Token)
-        Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+    public void cancelJoin(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
         try {
-            // Duyệt ở backend bằng actorParticipantId lấy từ session WS (không tin payload FE).
-            // Service giờ chỉ cần ID của bản ghi Participant để duyệt
-            participantService.cancel(msg.getTargetParticipantId(), msg.getMeetingCode());
-
-            MeetingWsMessage messageHost = new MeetingWsMessage();
-            messageHost.setAction("CANCEL_SUCCESS");
-            messageHost.setMeetingCode(msg.getMeetingCode());
-            messageHost.setTargetParticipantId(msg.getTargetParticipantId());
-            messageHost.setTargetName(msg.getTargetName());
-            messagingTemplate.convertAndSend(
-                    "/topic/meeting/" + messageHost.getMeetingCode()
-                            + "/participant/" + hostParticipantId,
-                    messageHost
+            participantService.cancel(
+                    msg.getTargetParticipantId(),
+                    msg.getMeetingCode(),
+                    msg.getTargetName()
             );
-            log.info("Sent cancel join to host topic: {}", hostParticipantId);
 
         } catch (RuntimeException e) {
             log.error("CANCEL failed: targetParticipantId={}, error={}",
                     msg.getTargetParticipantId(), e.getMessage());
+            // Tuỳ vào logic mà bạn có thể trả về thông báo lỗi cho người gửi (host) ở đây
             throw e;
         }
     }

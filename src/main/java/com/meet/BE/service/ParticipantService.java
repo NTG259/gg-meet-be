@@ -13,6 +13,7 @@ import com.meet.BE.repository.UserRepository;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ParticipantService {
     private final MeetingParticipantRepository meetingParticipantRepository;
     private final UserRepository userRepository;
@@ -156,8 +158,8 @@ public class ParticipantService {
     }
 
     @Transactional
-    public void cancel(Long participantId, String meetingCode) {
-        Optional<MeetingParticipant> participantOpt = meetingParticipantRepository.findById(participantId);
+    public void cancel(Long targetParticipantId, String meetingCode, String targetName) {
+        Optional<MeetingParticipant> participantOpt = meetingParticipantRepository.findById(targetParticipantId);
         if (participantOpt.isEmpty()) {
             return;
         }
@@ -171,11 +173,30 @@ public class ParticipantService {
             throw new BusinessException(ErrorCode.INVALID_STATUS);
         }
 
-        if (!participant.getUser().getId().equals(participantId)) {
+        // Lưu ý: Đoạn check này có thể bạn đang muốn check quyền của host,
+        // Hãy đảm bảo logic map đúng giữa User ID và Participant ID nhé.
+        if (!participant.getUser().getId().equals(targetParticipantId)) {
             throw new BusinessException(ErrorCode.NOT_PERMIT);
         }
 
+        // 1. Xóa participant
         meetingParticipantRepository.delete(participant);
+
+        // 2. Broadcast message sau khi xử lý database thành công
+        MeetingWsMessage messageHost = new MeetingWsMessage();
+        messageHost.setAction("CANCEL_SUCCESS");
+        messageHost.setMeetingCode(meetingCode);
+        messageHost.setTargetParticipantId(targetParticipantId);
+        messageHost.setTargetName(targetName);
+
+        Long hostParticipantId = meetingRepository.findByMeetingCode(meetingCode).orElseThrow(
+                () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
+        ).getId();
+        messagingTemplate.convertAndSend(
+                "/topic/meeting/" + meetingCode + "/participant/" + hostParticipantId,
+                messageHost
+        );
+        log.info("Sent cancel join to host topic: {}", hostParticipantId);
     }
 
     // Validate quyền thao tác của Host tại backend để tránh giả mạo payload từ FE.

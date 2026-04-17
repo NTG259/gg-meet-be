@@ -16,7 +16,7 @@ public class CreateMeetingRequest {
 
     public CreateMeetingRequest(String title) {
         this.title = title;
-        emptyTimeout = 300;
+        emptyTimeout = 20;
         departureTimeout = 100000000;
         maxParticipants = 20;
     }
