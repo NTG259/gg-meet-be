@@ -26,7 +26,9 @@ public class ScheduleMeetingService {
     private final MeetingParticipantRepository meetingParticipantRepository;
     private final MeetingRepository meetingRepository;
     private final EmailService emailService;
-    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private final UserService userService;
+
+    @Value("${app.frontend.base-url:http://100.93.168.24:3000}")
     private String frontendBaseUrl;
 
     @Transactional(rollbackFor = Exception.class)

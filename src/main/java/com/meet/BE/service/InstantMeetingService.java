@@ -261,7 +261,7 @@ public class InstantMeetingService {
                 () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
         );
 
-        if (meeting.getEndTime().isBefore(LocalDateTime.now())
+        if (meeting.getEndTime() != null && meeting.getEndTime().isBefore(LocalDateTime.now())
                 || meeting.getStatus() != MeetingStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
         }

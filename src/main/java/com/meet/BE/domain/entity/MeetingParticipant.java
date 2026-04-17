@@ -36,6 +36,8 @@ public class MeetingParticipant {
     @JoinColumn(name = "user_id")
     private User user;
 
+    private String email;
+
     // ===== GUEST =====
     @Column(name = "guest_id", length = 50)
     private String guestId;

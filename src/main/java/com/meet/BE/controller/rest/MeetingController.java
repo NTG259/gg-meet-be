@@ -87,7 +87,7 @@ public class MeetingController {
         return ResponseEntity.ok().body(
                 new ApiResponse<>(
                         verifiedMeetingCode,
-                        "Meeting code valid",
+                        "Meeting is active",
                         null,
                         HttpStatus.OK.value()
                 )
