@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lời mời tham gia cuộc họp</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+            color: #333333;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #0056D2; /* Màu xanh thương hiệu Kallio (có thể tùy chỉnh) */
+            padding: 30px 20px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #555555;
+        }
+        .meeting-card {
+            background-color: #f8fafd;
+            border: 1px solid #e1e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: left;
+        }
+        .meeting-card p {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        .meeting-card strong {
+            color: #0056D2;
+        }
+        .btn-join {
+            display: inline-block;
+            background-color: #0056D2;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            margin-top: 15px;
+            box-shadow: 0 4px 6px rgba(0, 86, 210, 0.2);
+            transition: background-color 0.3s;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #888888;
+            border-top: 1px solid #eeeeee;
+        }
+    </style>
+</head>
+<body>
+
+<div class="email-container">
+    <div class="header">
+        <h1>KALLIO</h1>
+    </div>
+
+    <div class="content">
+        <p class="greeting">Xin chào,</p>
+        <p>Bạn vừa nhận được lời mời tham gia cuộc họp từ <strong><span th:text="${hostName}">Tên Host</span></strong>.</p>
+
+        <div class="meeting-card">
+            <p><strong>Chủ đề:</strong> <span th:text="${meetingTitle}">Họp team tuần</span></p>
+            <p><strong>Thời gian:</strong> <span th:text="${meetingTime}">14:30 - Ngày 17/04/2026</span></p>
+            <p><strong>Mã phòng:</strong> <span th:text="${meetingCode}">ABC-XYZ-123</span></p>
+        </div>
+
+        <p>Hãy nhấn vào nút bên dưới để vào phòng chờ khi đến giờ nhé!</p>
+
+        <a th:href="${joinLink}" class="btn-join" target="_blank">Tham gia ngay</a>
+    </div>
+
+    <div class="footer">
+        <p>Email này được gửi tự động từ hệ thống Kallio.</p>
+        <p>Nếu bạn không mong đợi email này, vui lòng bỏ qua nó.</p>
+    </div>
+</div>
+
+</body>
+</html>

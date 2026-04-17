@@ -1,15 +1,17 @@
 package com.meet.BE.controller.rest;
 
 import com.meet.BE.domain.ApiResponse;
-import com.meet.BE.domain.request.CreateMeetingRequest;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.request.GuestJoinRequest;
+import com.meet.BE.domain.request.ScheduleMeetingRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
-import com.meet.BE.service.MeetingService;
+import com.meet.BE.service.InstantMeetingService;
+import com.meet.BE.service.ScheduleMeetingService;
 import com.meet.BE.service.UserService;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import com.meet.BE.utils.security.SecurityUtils;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +22,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/meetings")
 @RequiredArgsConstructor
 public class MeetingController {
-
-    private final MeetingService meetingService;
+    private final ScheduleMeetingService scheduleMeetingService;
+    private final InstantMeetingService instantMeetingService;
     private final UserService userService;
 
     @PostMapping
@@ -32,7 +34,7 @@ public class MeetingController {
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
         User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
-        MeetingResponseDTO response = meetingService.createMeeting(currentUser, title);
+        MeetingResponseDTO response = instantMeetingService.createMeeting(currentUser, title);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 new ApiResponse<>(response, "Tạo phòng thành công", null, HttpStatus.CREATED.value())
@@ -48,7 +50,7 @@ public class MeetingController {
         String currentUserEmail = SecurityUtils.getCurrentUserLogin().orElse(null);
 
         // Chuyển toàn bộ logic xử lý (User vs Guest) vào Service
-        MeetingResponseDTO response = meetingService.processJoinMeeting(currentUserEmail, meetingCode, guestRequest);
+        MeetingResponseDTO response = instantMeetingService.processJoinMeeting(currentUserEmail, meetingCode, guestRequest);
 
         return ResponseEntity.ok(
                 new ApiResponse<>(response, "Xử lý tham gia phòng thành công", null, HttpStatus.OK.value())
@@ -60,7 +62,7 @@ public class MeetingController {
             @AuthenticationPrincipal User currentUser,
             @RequestParam(value = "meetingCode") String meetingCode
     ) throws Exception {
-        meetingService.endMeeting(currentUser, meetingCode);
+        instantMeetingService.endMeeting(currentUser, meetingCode);
         return ResponseEntity.ok(
                 new ApiResponse<>(null, "Kết thúc phòng thành công", null, HttpStatus.OK.value())
         );
@@ -72,7 +74,7 @@ public class MeetingController {
             @RequestParam(value = "meetingCode") String meetingCode
     ) throws Exception {
         // Gọi hàm leave vừa tạo
-        meetingService.leaveMeeting(participantId, meetingCode);
+        instantMeetingService.leaveMeeting(participantId, meetingCode);
         return ResponseEntity.ok(
                 new ApiResponse<>(null, "Rời phòng thành công", null, HttpStatus.OK.value())
         );
@@ -81,7 +83,7 @@ public class MeetingController {
     @PostMapping("/verify")
     public ResponseEntity<ApiResponse<String>> checkValidMeetingCode(
             @RequestParam String meetingCode) {
-        String verifiedMeetingCode = meetingService.checkValidMeetingCode(meetingCode);
+        String verifiedMeetingCode = instantMeetingService.checkValidMeetingCode(meetingCode);
         return ResponseEntity.ok().body(
                 new ApiResponse<>(
                         verifiedMeetingCode,
@@ -91,4 +93,22 @@ public class MeetingController {
                 )
         );
     }
+
+    @PostMapping("/schedule")
+    public ResponseEntity<ApiResponse<MeetingResponseDTO>> scheduleMeeting(
+            @Valid @RequestBody ScheduleMeetingRequest request) throws Exception {
+        String currentUserEmail = SecurityUtils.getCurrentUserLogin()
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+        User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
+        MeetingResponseDTO response = scheduleMeetingService.createSchedule(currentUser, request);
+        return ResponseEntity.ok().body(
+                new ApiResponse<>(
+                        response,
+                        "Tạo lịch chờ thành công",
+                        null,
+                        HttpStatus.CREATED.value()
+                )
+        );
+    }
+
 }

@@ -21,6 +21,8 @@ public enum ErrorCode {
     NOT_PERMIT(HttpStatus.BAD_REQUEST, "Only the room owner has permission"),
     USER_NOT_IN_THIS_ROOM(HttpStatus.BAD_REQUEST, "User is not in the current meeting room"),
 
+
+
     // DATA
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
     EMAIL_ALREADY_EXIST(HttpStatus.CONFLICT, "Email is already in use"),

@@ -17,10 +17,8 @@ import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import io.livekit.server.*;
 import lombok.RequiredArgsConstructor;
-import lombok.val;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -28,12 +26,11 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class MeetingService {
+public class InstantMeetingService {
 
     private final MeetingParticipantRepository meetingParticipantRepository;
     private final MeetingRepository meetingRepository;
@@ -119,13 +116,27 @@ public class MeetingService {
      */
     @Transactional
     public MeetingResponseDTO processJoinMeeting(String email, String meetingCode, GuestJoinRequest guestRequest) {
+        return processJoinMeetingInternal(email, meetingCode, guestRequest, true);
+    }
+
+    @Transactional
+    public MeetingResponseDTO processJoinMeetingDirectly(String email, String meetingCode, GuestJoinRequest guestRequest) {
+        return processJoinMeetingInternal(email, meetingCode, guestRequest, false);
+    }
+
+    private MeetingResponseDTO processJoinMeetingInternal(
+            String email,
+            String meetingCode,
+            GuestJoinRequest guestRequest,
+            boolean waitingRoomEnabled
+    ) {
         Meeting meeting = handleFindMeeting(meetingCode);
 
         if (meeting.getStatus() != MeetingStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
         }
 
-        // 1. Gọi ParticipantService xử lý phân quyền User/Guest, lưu DB, và tự động bắn WS cho Host
+        // 1. Gọi ParticipantService xử lý tham gia, lưu DB
         MeetingParticipant participant = participantService.handleParticipantJoin(email, meetingCode, guestRequest);
 
         // 2. Map data cơ bản ra DTO
@@ -140,94 +151,47 @@ public class MeetingService {
         );
         response.setMeetingToken(meetingToken);
 
-        // 4. CHỈ cấp LiveKit Token nếu người này là Host hoặc đã được ACCEPT
-        // (Nếu đang WAITING, token LiveKit sẽ bị null -> bảo mật tốt hơn, không cho khách lén vào phòng)
-        if (participant.getParticipantStatus() == ParticipantStatus.ACCEPT) {
-            AccessToken token = new AccessToken(apiKey, apiSecret);
-
-            // Xử lý tên và ID tuỳ thuộc vào User hay Guest
-            String displayName = participant.getUser() != null ?
-                    participant.getUser().getFullName() : participant.getGuestName();
-            String identity = participant.getUser() != null ?
-                    participant.getUser().getId().toString() : "guest-" + participant.getGuestId();
-
-            token.setName(displayName);
-            token.setIdentity(identity);
-            token.addGrants(
-                    new VideoGrant[]{
-                            new RoomJoin(true),
-                            new RoomName(meetingCode),
-                            new CanPublish(true),
-                            new CanSubscribe(true),
-                            new CanUpdateOwnMetadata(true),
-                    }
-            );
-            // Set role cho User tham gia Host : Participant
-            String roleName = participant.getRole() != null ? participant.getRole().name() : Role.PARTICIPANT.toString();
-            ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Object> metadataMap = new HashMap<>();
-            metadataMap.put("role", roleName);
-            // Chuyển Map thành chuỗi JSON an toàn
-            String metadataJson = objectMapper.writeValueAsString(metadataMap);
-
-            token.setMetadata(metadataJson);
-
-            response.setLivekitToken(token.toJwt());
+        boolean shouldIssueLivekitToken = !waitingRoomEnabled
+                || participant.getParticipantStatus() == ParticipantStatus.ACCEPT;
+        if (shouldIssueLivekitToken) {
+            response.setLivekitToken(buildLivekitToken(participant, meetingCode));
         }
 
         return response;
     }
 
-//    @Transactional
-//    public MeetingResponseDTO processJoinMeeting(String email, String meetingCode, GuestJoinRequest guestRequest) {
-//        Meeting meeting = handleFindMeeting(meetingCode);
-//
-//        if (meeting.getStatus() != MeetingStatus.ACTIVE) {
-//            throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
-//        }
-//
-//        // 1. Gọi ParticipantService xử lý tham gia, lưu DB
-//        MeetingParticipant participant = participantService.handleParticipantJoin(email, meetingCode, guestRequest);
-//
-//        // 2. Map data cơ bản ra DTO
-//        MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
-//        response.setParticipantStatus(participant.getParticipantStatus());
-//
-//        // 3. Cấp Vé WebSocket (Dùng để Frontend connect STOMP)
-//        String meetingToken = securityService.generateMeetingToken(
-//                participant.getParticipantId(),
-//                meetingCode,
-//                participant.getRole().name()
-//        );
-//        response.setMeetingToken(meetingToken);
-//
-//        // 4. CẤP THẲNG LIVEKIT TOKEN (Không cần check phòng chờ nữa)
-//        AccessToken token = new AccessToken(apiKey, apiSecret);
-//
-//        // Xử lý tên và ID tuỳ thuộc vào User hay Guest
-//        String displayName = participant.getUser() != null ?
-//                participant.getUser().getFullName() : participant.getGuestName();
-//        String identity = participant.getUser() != null ?
-//                participant.getUser().getId().toString() : "guest-" + participant.getGuestId();
-//
-//        token.setName(displayName);
-//        token.setIdentity(identity);
-//        token.addGrants(new RoomJoin(true));
-//        token.addGrants(new RoomName(meetingCode));
-//
-//        // Set role cho User tham gia Host : Participant
-//        String roleName = participant.getRole() != null ? participant.getRole().name() : Role.PARTICIPANT.toString();
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        Map<String, Object> metadataMap = new HashMap<>();
-//        metadataMap.put("role", roleName);
-//        // Chuyển Map thành chuỗi JSON an toàn
-//        String metadataJson = objectMapper.writeValueAsString(metadataMap);
-//
-//        token.setMetadata(metadataJson);
-//        response.setLivekitToken(token.toJwt());
-//
-//        return response;
-//    }
+    private String buildLivekitToken(MeetingParticipant participant, String meetingCode) {
+        AccessToken token = new AccessToken(apiKey, apiSecret);
+
+        String displayName = participant.getUser() != null
+                ? participant.getUser().getFullName()
+                : participant.getGuestName();
+        String identity = participant.getUser() != null
+                ? participant.getUser().getId().toString()
+                : "guest-" + participant.getGuestId();
+
+        token.setName(displayName);
+        token.setIdentity(identity);
+        token.addGrants(
+                new VideoGrant[]{
+                        new RoomJoin(true),
+                        new RoomName(meetingCode),
+                        new CanPublish(true),
+                        new CanSubscribe(true),
+                        new CanUpdateOwnMetadata(true),
+                }
+        );
+
+        String roleName = participant.getRole() != null
+                ? participant.getRole().name()
+                : Role.PARTICIPANT.toString();
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> metadataMap = new HashMap<>();
+        metadataMap.put("role", roleName);
+        String metadataJson = objectMapper.writeValueAsString(metadataMap);
+        token.setMetadata(metadataJson);
+        return token.toJwt();
+    }
 
     private Meeting handleFindMeeting(String meetingCode) {
         return this.meetingRepository.findByMeetingCode(meetingCode).orElseThrow(
@@ -263,9 +227,7 @@ public class MeetingService {
         // 3. BẮN THÔNG BÁO WEBSOCKET CHO TẤT CẢ MỌI NGƯỜI
         MeetingWsMessage socketMessage = new MeetingWsMessage();
         socketMessage.setMeetingCode(meetingCode);
-        socketMessage.setAction("MEETING_ENDED"); // Frontend sẽ check action này
-        // Đối với event End Meeting, bạn không cần set targetParticipantId vì gửi cho tất cả
-        // Gửi vào topic chung của meeting, ví dụ: /topic/meeting/123456
+        socketMessage.setAction("MEETING_ENDED");
         messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, socketMessage);
     }
 
@@ -280,8 +242,7 @@ public class MeetingService {
             throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
         }
 
-        // 2. Cập nhật trạng thái của người này thành LEFT (Đã rời đi)
-        // Lưu ý: Nhớ thêm LEFT vào file Enum ParticipantStatus nhé
+        // 2. Cập nhật trạng thái của người này thành LEFT
         participant.setParticipantStatus(ParticipantStatus.LEFT);
         meetingParticipantRepository.save(participant);
 
@@ -289,7 +250,7 @@ public class MeetingService {
         MeetingWsMessage socketMessage = new MeetingWsMessage();
         socketMessage.setMeetingCode(meetingCode);
         socketMessage.setTargetParticipantId(participantId);
-        socketMessage.setAction("PARTICIPANT_LEFT"); // Frontend nghe action này để xóa lưới Video
+        socketMessage.setAction("PARTICIPANT_LEFT");
 
         // Broadcast vào phòng
         messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, socketMessage);

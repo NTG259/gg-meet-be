@@ -49,4 +49,38 @@ public class EmailService {
             throw new EmailSendingException("Không thể gửi email xác thực. Vui lòng thử lại sau.", e);
         }
     }
+
+    @Async("mailTaskExecutor")
+    public void sendMeetingInvitation(String toEmail, String hostName, String meetingTitle, String meetingTime, String joinLink, String meetingCode) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            // Đặt tham số multipart = true để gửi được HTML có định dạng phức tạp
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom("noreply@googlemeetclone.com", "Kallio");
+            helper.setTo(toEmail);
+            helper.setSubject("Thư mời tham gia cuộc họp: " + meetingTitle);
+
+            // Truyền dữ liệu vào Template
+            Context context = new Context();
+            context.setVariable("hostName", hostName);
+            context.setVariable("meetingTitle", meetingTitle);
+            context.setVariable("meetingTime", meetingTime);
+            context.setVariable("joinLink", joinLink);
+            context.setVariable("meetingCode", meetingCode);
+
+            // Chỉ định file HTML template (nằm trong thư mục resources/templates/email/)
+            String htmlContent = templateEngine.process("email/meeting-invitation", context);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+
+            log.info("Đã gửi email lời mời họp thành công tới: {}", toEmail);
+
+        } catch (MessagingException | UnsupportedEncodingException e) {
+            log.error("Lỗi khi gửi email lời mời họp tới {}: {}", toEmail, e.getMessage());
+            // Có thể dùng chung exception của bạn hoặc tạo mới InvitationEmailException
+            throw new EmailSendingException("Không thể gửi email lời mời. Vui lòng thử lại sau.", e);
+        }
+    }
 }

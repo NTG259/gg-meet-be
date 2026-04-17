@@ -1,5 +1,6 @@
 package com.meet.BE.controller.socket;
 
+import com.meet.BE.service.WebhookService;
 import io.livekit.server.WebhookReceiver;
 import livekit.LivekitWebhook;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +22,11 @@ public class LiveKitWebhookController {
     @Value("${livekit.api-secret}")
     private String apiSecret;
 
+    // Inject service vào để gọi hàm autoEndMeeting
+    private final WebhookService webhookService;
+
     @Bean
     public WebhookReceiver webhookReceiver() {
-        // Đảm bảo apiKey và apiSecret ở đây khớp 100% với server LiveKit
         return new WebhookReceiver(apiKey, apiSecret);
     }
 
@@ -34,35 +37,23 @@ public class LiveKitWebhookController {
 
         try {
             LivekitWebhook.WebhookEvent event = webhookReceiver().receive(body, authHeader);
+            String eventName = event.getEvent();
 
-            // Sử dụng StringBuilder để gom các thông tin có ý nghĩa thành 1 dòng log
-            StringBuilder logMsg = new StringBuilder();
+            // Log nhẹ nhàng để biết Webhook đang hoạt động
+            log.info(">>> [LIVEKIT WEBHOOK] Received Event: {}", eventName);
 
-            // 1. Luôn luôn có tên sự kiện
-            logMsg.append(">>> [WEBHOOK] Event: ").append(event.getEvent());
-
-            // 2. Lấy thông tin Room (nếu có)
-            logMsg.append(" | Room: ").append(event.getRoom().getName())
-                    .append(" (").append(event.getRoom().getSid()).append(")");
-
-            // 3. Lấy thông tin Participant (nếu có)
-            logMsg.append(" | Participant: ").append(event.getParticipant().getIdentity());
-
-            // Lấy thêm tên hiển thị của participant nếu họ có cài đặt
-            String pName = event.getParticipant().getName();
-            if (!pName.isEmpty()) {
-                logMsg.append(" [").append(pName).append("]");
+            // BẮT SỰ KIỆN PHÒNG KẾT THÚC
+            if ("room_finished".equals(eventName)) {
+                // Trong LiveKit, Tên phòng (Room Name) chính là Meeting Code của chúng ta
+                String meetingCode = event.getRoom().getName();
+                log.info(">>> [LIVEKIT WEBHOOK] Phòng {} đã đóng. Đang cập nhật DB...", meetingCode);
+                webhookService.autoEndMeeting(meetingCode);
             }
-
-            // 4. Lấy thông tin Track (Audio/Video - nếu có)
-            logMsg.append(" | Track SID: ").append(event.getTrack().getSid())
-                    .append(" (").append(event.getTrack().getType()).append(")");
-
-            log.info(logMsg.toString());
+            // Trả về ACK cho Livekit, nếu không nó sẽ spam gửi lại
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {
-            System.err.println(">>> [WEBHOOK ERROR]: " + e.getMessage());
+            log.error(">>> [LIVEKIT WEBHOOK ERROR]: Xác thực thất bại hoặc có lỗi - {}", e.getMessage());
             return ResponseEntity.status(401).build();
         }
     }

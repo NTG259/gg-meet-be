@@ -27,6 +27,9 @@ public class Meeting {
     @Column(nullable = false, length = 255)
     private String title;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private MeetingStatus status;
