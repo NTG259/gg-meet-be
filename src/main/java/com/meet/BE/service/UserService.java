@@ -42,7 +42,7 @@ public class UserService {
 
 
         VerificationToken token = tokenRepository.findByToken(userDto.getVerifyCode()).orElseThrow(
-                () -> new BusinessException(ErrorCode.BAD_CREDENTIALS)
+                () -> new BusinessException(ErrorCode.INVALID_TOKEN)
         );
 
         if (!Objects.equals(token.getEmail(), userDto.getEmail()) || token.getExpiryDate().isBefore(LocalDateTime.now())) {
