@@ -28,6 +28,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -292,5 +293,17 @@ public class MeetingService {
 
         // Broadcast vào phòng
         messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, socketMessage);
+    }
+
+    public String checkValidMeetingCode(String meetingCode) {
+        Meeting meeting = this.meetingRepository.findByMeetingCode(meetingCode).orElseThrow(
+                () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
+        );
+
+        if (meeting.getEndTime().isBefore(LocalDateTime.now())
+                || meeting.getStatus() != MeetingStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
+        }
+        return meetingCode;
     }
 }

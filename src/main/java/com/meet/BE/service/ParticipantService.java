@@ -155,6 +155,29 @@ public class ParticipantService {
         return meetingParticipantRepository.save(participant);
     }
 
+    @Transactional
+    public void cancel(Long participantId, String meetingCode) {
+        Optional<MeetingParticipant> participantOpt = meetingParticipantRepository.findById(participantId);
+        if (participantOpt.isEmpty()) {
+            return;
+        }
+
+        MeetingParticipant participant = participantOpt.get();
+        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
+            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+        }
+
+        if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS);
+        }
+
+        if (!participant.getUser().getId().equals(participantId)) {
+            throw new BusinessException(ErrorCode.NOT_PERMIT);
+        }
+
+        meetingParticipantRepository.delete(participant);
+    }
+
     // Validate quyền thao tác của Host tại backend để tránh giả mạo payload từ FE.
     private void assertHostActionPermission(Long actorParticipantId, String meetingCode) {
         if (actorParticipantId == null) {

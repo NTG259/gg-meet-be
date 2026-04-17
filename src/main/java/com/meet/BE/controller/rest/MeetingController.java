@@ -77,4 +77,18 @@ public class MeetingController {
                 new ApiResponse<>(null, "Rời phòng thành công", null, HttpStatus.OK.value())
         );
     }
+
+    @PostMapping("/verify")
+    public ResponseEntity<ApiResponse<String>> checkValidMeetingCode(
+            @RequestParam String meetingCode) {
+        String verifiedMeetingCode = meetingService.checkValidMeetingCode(meetingCode);
+        return ResponseEntity.ok().body(
+                new ApiResponse<>(
+                        verifiedMeetingCode,
+                        "Meeting code valid",
+                        null,
+                        HttpStatus.OK.value()
+                )
+        );
+    }
 }

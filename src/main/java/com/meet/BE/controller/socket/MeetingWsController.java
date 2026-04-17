@@ -11,7 +11,7 @@ import org.springframework.stereotype.Controller;
 
 @Controller
 @RequiredArgsConstructor
-@Slf4j // Sử dụng @Slf4j của Lombok để code sạch hơn
+@Slf4j
 public class MeetingWsController {
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -97,6 +97,35 @@ public class MeetingWsController {
 
         } catch (RuntimeException e) {
             log.error("REJECT failed: targetParticipantId={}, error={}",
+                    msg.getTargetParticipantId(), e.getMessage());
+            throw e;
+        }
+    }
+
+    @MessageMapping("/meeting/cancel-join")
+    public void cancelJoin(SimpMessageHeaderAccessor headerAccessor,
+                           MeetingWsMessage msg) {
+        // Lấy ID của Host thao tác từ WebSocket Session (đã lưu lúc check Token)
+        Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+        try {
+            // Duyệt ở backend bằng actorParticipantId lấy từ session WS (không tin payload FE).
+            // Service giờ chỉ cần ID của bản ghi Participant để duyệt
+            participantService.cancel(msg.getTargetParticipantId(), msg.getMeetingCode());
+
+            MeetingWsMessage messageHost = new MeetingWsMessage();
+            messageHost.setAction("CANCEL_SUCCESS");
+            messageHost.setMeetingCode(msg.getMeetingCode());
+            messageHost.setTargetParticipantId(msg.getTargetParticipantId());
+            messageHost.setTargetName(msg.getTargetName());
+            messagingTemplate.convertAndSend(
+                    "/topic/meeting/" + messageHost.getMeetingCode()
+                            + "/participant/" + hostParticipantId,
+                    messageHost
+            );
+            log.info("Sent cancel join to host topic: {}", hostParticipantId);
+
+        } catch (RuntimeException e) {
+            log.error("CANCEL failed: targetParticipantId={}, error={}",
                     msg.getTargetParticipantId(), e.getMessage());
             throw e;
         }
