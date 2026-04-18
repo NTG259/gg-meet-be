@@ -110,14 +110,13 @@ public class MeetingWsController {
                     msg.getMeetingCode(),
                     msg.getTargetName()
             );
-
         } catch (RuntimeException e) {
             log.error("CANCEL failed: targetParticipantId={}, error={}",
                     msg.getTargetParticipantId(), e.getMessage());
-            // Tuỳ vào logic mà bạn có thể trả về thông báo lỗi cho người gửi (host) ở đây
             throw e;
         }
     }
+
 
     private Long getParticipantIdFromSession(SimpMessageHeaderAccessor headerAccessor) {
         if (headerAccessor.getSessionAttributes() == null) {

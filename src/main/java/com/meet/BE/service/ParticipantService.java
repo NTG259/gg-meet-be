@@ -75,7 +75,28 @@ public class ParticipantService {
                 existing.setParticipantStatus(ParticipantStatus.ACCEPT);
                 return meetingParticipantRepository.save(existing);
             }
-            return existing; // Đang WAITING hoặc REJECTED thì giữ nguyên
+            if (existing.getParticipantStatus() == ParticipantStatus.REJECT) {
+                existing.setParticipantStatus(ParticipantStatus.WAITING);
+                existing = meetingParticipantRepository.save(existing);
+
+                String displayName = existing.getUser() != null
+                        ? existing.getUser().getFullName()
+                        : existing.getGuestName();
+
+                MeetingWsMessage socketMessage = new MeetingWsMessage();
+                socketMessage.setMeetingCode(meetingCode);
+                socketMessage.setTargetParticipantId(existing.getParticipantId());
+                socketMessage.setTargetName(displayName);
+                socketMessage.setAction("JOIN_REQUEST");
+
+                messagingTemplate.convertAndSend(
+                        "/topic/meeting/" + meetingCode + "/waiting",
+                        socketMessage
+                );
+
+                return existing;
+            }
+            return existing;
         }
 
         // 2. Tạo mới Participant
@@ -160,44 +181,40 @@ public class ParticipantService {
 
     @Transactional
     public void cancel(Long targetParticipantId, String meetingCode, String targetName) {
-        Optional<MeetingParticipant> participantOpt = meetingParticipantRepository.findById(targetParticipantId);
-        if (participantOpt.isEmpty()) {
+        MeetingParticipant participant = meetingParticipantRepository.findById(targetParticipantId)
+                .orElse(null);
+
+        if (participant == null) {
             return;
         }
 
-        MeetingParticipant participant = participantOpt.get();
         if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
             throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
         }
 
         if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS);
+            return;
         }
 
-        // Lưu ý: Đoạn check này có thể bạn đang muốn check quyền của host,
-        // Hãy đảm bảo logic map đúng giữa User ID và Participant ID nhé.
-        if (!participant.getUser().getId().equals(targetParticipantId)) {
-            throw new BusinessException(ErrorCode.NOT_PERMIT);
+        String resolvedTargetName = targetName;
+        if (resolvedTargetName == null || resolvedTargetName.isBlank()) {
+            resolvedTargetName = participant.getUser() != null
+                    ? participant.getUser().getFullName()
+                    : participant.getGuestName();
         }
 
-        // 1. Xóa participant
         meetingParticipantRepository.delete(participant);
 
-        // 2. Broadcast message sau khi xử lý database thành công
-        MeetingWsMessage messageHost = new MeetingWsMessage();
-        messageHost.setAction("CANCEL_SUCCESS");
-        messageHost.setMeetingCode(meetingCode);
-        messageHost.setTargetParticipantId(targetParticipantId);
-        messageHost.setTargetName(targetName);
+        MeetingWsMessage message = new MeetingWsMessage();
+        message.setAction("WAITING_CANCELLED");
+        message.setMeetingCode(meetingCode);
+        message.setTargetParticipantId(targetParticipantId);
+        message.setTargetName(resolvedTargetName);
 
-        Long hostParticipantId = meetingRepository.findByMeetingCode(meetingCode).orElseThrow(
-                () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
-        ).getHost().getId();
-        messagingTemplate.convertAndSend(
-                "/topic/meeting/" + meetingCode + "/participant/" + hostParticipantId,
-                messageHost
-        );
-        log.info("Sent cancel join to host topic: {}", hostParticipantId);
+        messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, message);
+
+        log.info("Sent waiting cancelled to meeting topic: meetingCode={}, targetParticipantId={}",
+                meetingCode, targetParticipantId);
     }
 
     public void saveInvitedUser(String meetingCode, List<String> invitedEmails) {
