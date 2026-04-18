@@ -59,9 +59,12 @@ public class MeetingController {
 
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> endMeeting(
-            @AuthenticationPrincipal User currentUser,
             @RequestParam(value = "meetingCode") String meetingCode
     ) throws Exception {
+        String currentUserEmail = SecurityUtils.getCurrentUserLogin()
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+
+        User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
         instantMeetingService.endMeeting(currentUser, meetingCode);
         return ResponseEntity.ok(
                 new ApiResponse<>(null, "Kết thúc phòng thành công", null, HttpStatus.OK.value())

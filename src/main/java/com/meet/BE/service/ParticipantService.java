@@ -18,6 +18,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -197,6 +198,27 @@ public class ParticipantService {
                 messageHost
         );
         log.info("Sent cancel join to host topic: {}", hostParticipantId);
+    }
+
+    public void saveInvitedUser(String meetingCode, List<String> invitedEmails) {
+        Meeting meeting = this.meetingRepository.findByMeetingCode(meetingCode)
+                .orElseThrow(
+                        () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
+                );
+
+        for (String email : invitedEmails) {
+            User user = this.userRepository.findByEmail(email)
+                    .orElseThrow(
+                            () -> new BusinessException(ErrorCode.USER_NOT_FOUND)
+                    );
+            MeetingParticipant participant = new MeetingParticipant();
+            participant.setUser(user);
+            participant.setEmail(email);
+            participant.setParticipantStatus(ParticipantStatus.ACCEPT);
+            participant.setRole(Role.PARTICIPANT);
+            participant.setMeeting(meeting);
+            this.meetingParticipantRepository.save(participant);
+        }
     }
 
     // Validate quyền thao tác của Host tại backend để tránh giả mạo payload từ FE.

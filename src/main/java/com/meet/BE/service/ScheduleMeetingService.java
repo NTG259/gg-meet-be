@@ -27,7 +27,7 @@ public class ScheduleMeetingService {
     private final MeetingRepository meetingRepository;
     private final EmailService emailService;
     private final UserService userService;
-
+    private final ParticipantService participantService;
     @Value("${app.frontend.base-url:http://100.93.168.24:3000}")
     private String frontendBaseUrl;
 
@@ -72,6 +72,8 @@ public class ScheduleMeetingService {
                 );
             }
         }
+
+        this.participantService.saveInvitedUser(meetingCode, request.getEmailList());
 
         // 6. Trả về DTO
         MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, null);
