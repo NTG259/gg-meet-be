@@ -13,6 +13,7 @@ import com.meet.BE.utils.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -42,12 +43,32 @@ public class ParticipantEntityService {
         return meetingParticipantRepository.save(p);
     }
 
+    public void saveInvitedUser(Meeting meeting, List<String> invitedEmails) {
+        for (String email : invitedEmails) {
+            MeetingParticipant participant = new MeetingParticipant();
+            participant.setUser(null);
+            participant.setEmail(email);
+            participant.setParticipantStatus(ParticipantStatus.INVITED);
+            participant.setRole(Role.PARTICIPANT);
+            participant.setMeeting(meeting);
+            this.meetingParticipantRepository.save(participant);
+        }
+    }
+
+    public MeetingParticipant updateParticipantStatus(MeetingParticipant participant, ParticipantStatus status) {
+        participant.setParticipantStatus(status);
+        return meetingParticipantRepository.save(participant);
+    }
+
     public Optional<MeetingParticipant> findExistingUserParticipant(Meeting meeting, User user) {
         return meetingParticipantRepository
                 .findByMeetingIdAndUserId(meeting.getId(), user.getId());
     }
 
-
+    public Optional<MeetingParticipant> findInvitedUser(Meeting meeting, String email) {
+        return meetingParticipantRepository
+                .findByMeetingIdAndEmail(meeting.getId(), email);
+    }
     public Optional<MeetingParticipant> findExistingGuestParticipant(Meeting meeting, GuestJoinRequest guestRequest) {
         return meetingParticipantRepository
                 .findByMeetingIdAndGuestId(meeting.getId(), guestRequest.getGuestId());
@@ -77,4 +98,53 @@ public class ParticipantEntityService {
 
         return existing;
     }
+
+    public void removeParticipant(Long participantId) {
+        if (this.meetingParticipantRepository.existsById(participantId)) {
+            this.meetingParticipantRepository.deleteById(participantId);
+        }
+    }
+
+    public MeetingParticipant validateCancelableWaiting(Long participantId, String meetingCode) {
+        MeetingParticipant p = meetingParticipantRepository.findById(participantId)
+                .orElse(null);
+
+        if (p == null) return null;
+
+        if (!p.getMeeting().getMeetingCode().equals(meetingCode)) {
+            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+        }
+
+        if (p.getParticipantStatus() != ParticipantStatus.WAITING) {
+            return null;
+        }
+
+        return p;
+    }
+
+    public MeetingParticipant validateParticipantInMeeting(Long participantId, String meetingCode) {
+        if (participantId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+
+        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
+            throw new BusinessException(ErrorCode.NOT_PERMIT);
+        }
+
+        return participant;
+    }
+
+    public MeetingParticipant getUserInMeeting(Long userId, String meetingCode) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Meeting meeting = this.meetingRepository.findByMeetingCode(meetingCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
+        return this.meetingParticipantRepository.findByMeetingIdAndUserId(meeting.getId(), userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM));
+    }
+
 }

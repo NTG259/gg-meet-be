@@ -69,7 +69,6 @@ public class ScheduleMeetingService {
                         host.getFullName(),
                         request.getTitle(),
                         formattedTime,
-                        joinLink,
                         meetingCode
                 );
             }
@@ -79,7 +78,6 @@ public class ScheduleMeetingService {
 
         // 6. Trả về DTO
         MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, null);
-        response.setParticipantStatus(ParticipantStatus.ACCEPT);
         response.setTitle(savedMeeting.getTitle());
         response.setStartTime(LocalDateTime.of(request.getMeetingDate(), request.getMeetingTime()));
 

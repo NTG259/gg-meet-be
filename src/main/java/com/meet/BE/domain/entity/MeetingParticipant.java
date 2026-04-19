@@ -65,30 +65,26 @@ public class MeetingParticipant {
     @Column(name = "left_at")
     private LocalDateTime leftAt;
 
-    // ===== VALIDATION (CORE LOGIC) =====
     @PrePersist
     @PreUpdate
     private void validate() {
         boolean hasUser = user != null;
         boolean hasGuest = guestId != null && !guestId.isBlank();
+        boolean hasEmail = email != null && !email.isBlank();
 
-        // phải có 1 trong 2
-        if (!hasUser && !hasGuest) {
-            throw new IllegalStateException("Người tham gia phải có id khách hoặc id của tài khoản");
+        if (!hasUser && !hasGuest && !hasEmail) {
+            throw new IllegalStateException("Người tham gia phải có id của tài khoản, id khách hoặc email");
         }
 
-        // không được có cả 2
         if (hasUser && hasGuest) {
-            throw new IllegalStateException("Người tham gia chỉ có id khách hoặc id tài khoản");
+            throw new IllegalStateException("Người tham gia chỉ có id khách hoặc id tài khoản, không được có cả hai");
         }
 
-        // nếu là guest thì phải có tên
         if (hasGuest && (guestName == null || guestName.isBlank())) {
-            throw new IllegalStateException("Tên khách không được rỗng");
+            throw new IllegalStateException("Tên khách không được để trống");
         }
     }
 
-    // ===== EQUALS & HASHCODE =====
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

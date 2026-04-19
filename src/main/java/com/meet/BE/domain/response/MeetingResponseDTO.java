@@ -19,7 +19,6 @@ public class MeetingResponseDTO {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String livekitToken;
-
     private String meetingToken;
     private ParticipantStatus participantStatus;
 }

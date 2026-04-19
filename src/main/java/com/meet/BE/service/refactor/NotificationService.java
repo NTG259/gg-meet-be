@@ -12,50 +12,74 @@ public class NotificationService {
     private String topic(String meetingCode) {
         return "/topic/meeting/" + meetingCode;
     }
-
     private String waitingTopic(String meetingCode) {
         return topic(meetingCode) + "/waiting";
     }
+    private String participantTopic(String meetingCode, Long participantId) {
+        return topic(meetingCode) + "/participant/" + participantId;
+    }
 
-    public void sendJoinRequest(String meetingCode, Long participantId, String name) {
+    public void sendJoinRequest(String meetingCode, Long participantId, String participantName) {
         MeetingWsMessage msg = buildMessage(
                 "JOIN_REQUEST",
                 meetingCode,
                 participantId,
-                name
+                participantName
         );
 
         messagingTemplate.convertAndSend(waitingTopic(meetingCode), msg);
     }
 
-    public void sendWaitingCancelled(String meetingCode, Long participantId, String name) {
+    public void sendWaitingCancelled(String meetingCode, Long participantId, String participantName) {
         MeetingWsMessage msg = buildMessage(
                 "WAITING_CANCELLED",
                 meetingCode,
                 participantId,
-                name
+                participantName
         );
 
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
     }
 
-    public void sendAdmit(String meetingCode, Long participantId, String name) {
+    public void sendAdmit(String meetingCode, Long targetParticipantId, String participantName) {
         MeetingWsMessage msg = buildMessage(
-                "ADMIT",
+                "ADMITTED",
                 meetingCode,
-                participantId,
-                name
+                targetParticipantId,
+                participantName
         );
+
+        messagingTemplate.convertAndSend(participantTopic(meetingCode, targetParticipantId), msg);
+        messagingTemplate.convertAndSend(topic(meetingCode), msg);
+    }
+
+    public void sendReject(String meetingCode, Long participantId, Long hostId, String name) {
+
+        messagingTemplate.convertAndSend(
+                participantTopic(meetingCode, participantId),
+                buildMessage("REJECTED", meetingCode, participantId, name)
+        );
+
+        messagingTemplate.convertAndSend(
+                participantTopic(meetingCode, hostId),
+                buildMessage("REJECT_SUCCESS", meetingCode, participantId, name)
+        );
+    }
+
+    public void sendMeetingEnded(String meetingCode) {
+        MeetingWsMessage msg = new MeetingWsMessage();
+        msg.setMeetingCode(meetingCode);
+        msg.setAction("MEETING_ENDED");
 
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
     }
 
-    public void sendReject(String meetingCode, Long participantId, String name) {
+    public void sendParticipantLeft(String meetingCode, Long participantId) {
         MeetingWsMessage msg = buildMessage(
-                "REJECT",
+                "PARTICIPANT_LEFT",
                 meetingCode,
                 participantId,
-                name
+                null
         );
 
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
@@ -70,4 +94,6 @@ public class NotificationService {
         msg.setTargetName(name);
         return msg;
     }
+
+
 }

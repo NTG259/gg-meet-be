@@ -6,7 +6,7 @@ import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.enums.MeetingStatus;
 import com.meet.BE.domain.enums.ParticipantStatus;
 import com.meet.BE.domain.enums.Role;
-import com.meet.BE.domain.request.GuestJoinRequest;
+import com.meet.BE.domain.request.ScheduleMeetingRequest;
 import com.meet.BE.repository.MeetingParticipantRepository;
 import com.meet.BE.repository.MeetingRepository;
 import com.meet.BE.utils.errors.BusinessException;
@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,19 @@ public class MeetingEntityService {
         return meetingRepository.save(meeting);
     }
 
+    public Meeting createScheduleMeetingEntity(User host, ScheduleMeetingRequest request) {
+        String meetingCode = UUID.randomUUID().toString().substring(0, 10);
+        Meeting meeting = new Meeting();
+        meeting.setHost(host);
+        meeting.setMeetingCode(meetingCode);
+        meeting.setTitle(request.getTitle());
+        meeting.setDescription(request.getDescription());
+        meeting.setStatus(MeetingStatus.SCHEDULED);
+        meeting.setStartTime(LocalDateTime.of(request.getMeetingDate(), request.getMeetingTime()));
+        meeting.setRoomSid(meetingCode);
+        return meetingRepository.save(meeting);
+    }
+
     public MeetingParticipant createHostParticipant(Meeting meeting, User host) {
         MeetingParticipant participant = new MeetingParticipant();
         participant.setMeeting(meeting);
@@ -44,26 +58,7 @@ public class MeetingEntityService {
         return meetingParticipantRepository.save(participant);
     }
 
-    public MeetingParticipant createUserParticipant(Meeting meeting, User user) {
-        MeetingParticipant participant = new MeetingParticipant();
-        participant.setMeeting(meeting);
-        participant.setUser(user);
-        participant.setRole(Role.PARTICIPANT);
-        participant.setParticipantStatus(ParticipantStatus.WAITING);
-        return meetingParticipantRepository.save(participant);
-    }
-
-    public MeetingParticipant createGuestParticipant(Meeting meeting, GuestJoinRequest guest) {
-        MeetingParticipant p = new MeetingParticipant();
-        p.setMeeting(meeting);
-        p.setGuestId(guest.getGuestId());
-        p.setGuestName(guest.getGuestName());
-        p.setRole(Role.PARTICIPANT);
-        p.setParticipantStatus(ParticipantStatus.WAITING);
-        return meetingParticipantRepository.save(p);
-    }
-
-    public Meeting validateMeeting(String meetingCode) {
+    public Meeting validateMeetingBeforeJoin(String meetingCode) {
         Meeting meeting = findByMeetingCode(meetingCode);
         if (meeting.getStatus() == MeetingStatus.SCHEDULED) {
             throw new BusinessException(ErrorCode.MEETING_SCHEDULED_NOT_STARTED);
@@ -77,5 +72,18 @@ public class MeetingEntityService {
         return this.meetingRepository.findByMeetingCode(meetingCode).orElseThrow(
                 () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
         );
+    }
+
+    public Meeting validateMeetingBeforeDelete(String meetingCode) {
+        Meeting meeting = findByMeetingCode(meetingCode);
+        if (meeting.getStatus() != MeetingStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
+        }
+        return meeting;
+    }
+
+    public Meeting updateMeetingStatus(Meeting meeting, MeetingStatus status) {
+        meeting.setStatus(status);
+        return this.meetingRepository.save(meeting);
     }
 }

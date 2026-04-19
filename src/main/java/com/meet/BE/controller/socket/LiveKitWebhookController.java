@@ -22,7 +22,6 @@ public class LiveKitWebhookController {
     @Value("${livekit.api-secret}")
     private String apiSecret;
 
-    // Inject service vào để gọi hàm autoEndMeeting
     private final WebhookService webhookService;
 
     @Bean
@@ -39,12 +38,11 @@ public class LiveKitWebhookController {
             LivekitWebhook.WebhookEvent event = webhookReceiver().receive(body, authHeader);
             String eventName = event.getEvent();
 
-            // Log nhẹ nhàng để biết Webhook đang hoạt động
             log.info(">>> [LIVEKIT WEBHOOK] Received Event: {}", eventName);
 
-            // BẮT SỰ KIỆN PHÒNG KẾT THÚC
+            // Bắt sự kiện phòng kết thúc
             if ("room_finished".equals(eventName)) {
-                // Trong LiveKit, Tên phòng (Room Name) chính là Meeting Code của chúng ta
+                // RoomName(Livekit) == meetingCode
                 String meetingCode = event.getRoom().getName();
                 log.info(">>> [LIVEKIT WEBHOOK] Phòng {} đã đóng. Đang cập nhật DB...", meetingCode);
                 webhookService.autoEndMeeting(meetingCode);

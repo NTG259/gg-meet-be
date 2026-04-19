@@ -22,6 +22,7 @@ public enum ErrorCode {
     USER_NOT_IN_THIS_ROOM(HttpStatus.BAD_REQUEST, "User is not in the current meeting room"),
     MEETING_SCHEDULED_NOT_STARTED(HttpStatus.BAD_REQUEST, "Scheduled meeting has not started yet"),
     USER_BANNED_FROM_MEETING(HttpStatus.FORBIDDEN, "User has been banned from this meeting"),
+    ROOM_DELETE_FAILED(HttpStatus.BAD_REQUEST, "Room cannot delete"),
 
     // DATA
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),

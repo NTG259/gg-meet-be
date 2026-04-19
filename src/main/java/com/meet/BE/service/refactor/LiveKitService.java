@@ -4,6 +4,8 @@ import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.enums.Role;
 import com.meet.BE.domain.request.CreateInstantMeetingRequest;
+import com.meet.BE.utils.errors.BusinessException;
+import com.meet.BE.utils.errors.ErrorCode;
 import io.livekit.server.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +38,14 @@ public class LiveKitService {
                 "",
                 ""
         ).execute();
+    }
+
+    public void deleteRoom(String roomName) {
+        try {
+            roomServiceClient.deleteRoom(roomName).execute();
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.ROOM_DELETE_FAILED);
+        }
     }
 
     public void createInstantRoom(CreateInstantMeetingRequest request) throws IOException {

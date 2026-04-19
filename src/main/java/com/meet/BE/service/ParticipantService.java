@@ -38,184 +38,187 @@ public class ParticipantService {
      * - Host: auto ACCEPT.
      * - Người thường: vào WAITING và bắn WS cho host duyệt.
      */
-    @Transactional
-    public MeetingParticipant handleParticipantJoin(String email, String meetingCode, GuestJoinRequest guestRequest) {
-        Meeting meeting = meetingRepository.findByMeetingCode(meetingCode)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
-
-        User user = null;
-        if (!email.equals("anonymousUser")) {
-            user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-        }
-
-        // Bắt lỗi nếu không phải User cũng không truyền GuestInfo đủ
-        if (user == null && (guestRequest == null
-                || guestRequest.getGuestId() == null
-                || guestRequest.getGuestId().isBlank()
-                || guestRequest.getGuestName() == null
-                || guestRequest.getGuestName().isBlank())) {
-            throw new BusinessException(ErrorCode.DATA_NOT_ENOUGH);
-        }
-
-        boolean isHost = (user != null && user.getId().equals(meeting.getHost().getId()));
-
-        // 1. Kiểm tra Participant đã tồn tại chưa
-        Optional<MeetingParticipant> existingOpt = user != null
-                ? meetingParticipantRepository.findByMeetingIdAndUserId(meeting.getId(), user.getId())
-                : meetingParticipantRepository.findByMeetingIdAndGuestId(meeting.getId(), guestRequest.getGuestId());
-
-        if (existingOpt.isPresent()) {
-            MeetingParticipant existing = existingOpt.get();
-            // Trường hợp đã từng vào trước đó:
-            // - Host luôn được vào lại
-            // - Người đã ACCEPT được vào lại
-            // - WAITING/REJECT giữ nguyên để tránh bypass quy trình duyệt
-            if (isHost || existing.getParticipantStatus() == ParticipantStatus.ACCEPT) {
-                existing.setParticipantStatus(ParticipantStatus.ACCEPT);
-                return meetingParticipantRepository.save(existing);
-            }
-            if (existing.getParticipantStatus() == ParticipantStatus.REJECT) {
-                existing.setParticipantStatus(ParticipantStatus.WAITING);
-                existing = meetingParticipantRepository.save(existing);
-
-                String displayName = existing.getUser() != null
-                        ? existing.getUser().getFullName()
-                        : existing.getGuestName();
-
-                MeetingWsMessage socketMessage = new MeetingWsMessage();
-                socketMessage.setMeetingCode(meetingCode);
-                socketMessage.setTargetParticipantId(existing.getParticipantId());
-                socketMessage.setTargetName(displayName);
-                socketMessage.setAction("JOIN_REQUEST");
-
-                messagingTemplate.convertAndSend(
-                        "/topic/meeting/" + meetingCode + "/waiting",
-                        socketMessage
-                );
-
-                return existing;
-            }
-            return existing;
-        }
-
-        // 2. Tạo mới Participant
-        MeetingParticipant newParticipant = new MeetingParticipant();
-        newParticipant.setMeeting(meeting);
-
-        String displayName;
-        if (user != null) {
-            newParticipant.setUser(user);
-            displayName = user.getFullName();
-        } else {
-            newParticipant.setGuestId(guestRequest.getGuestId());
-            newParticipant.setGuestName(guestRequest.getGuestName());
-            displayName = guestRequest.getGuestName();
-        }
-
-        // 3. Phân quyền và Trạng thái
-        if (isHost) {
-            newParticipant.setRole(Role.HOST);
-            newParticipant.setParticipantStatus(ParticipantStatus.ACCEPT);
-            return meetingParticipantRepository.save(newParticipant);
-        } else {
-            newParticipant.setRole(Role.PARTICIPANT);
-            newParticipant.setParticipantStatus(ParticipantStatus.WAITING);
-            newParticipant = meetingParticipantRepository.save(newParticipant);
-
-            // 4. BẮN THÔNG BÁO WEBSOCKET CHO HOST (Phòng chờ)
-            MeetingWsMessage socketMessage = new MeetingWsMessage();
-            socketMessage.setMeetingCode(meetingCode);
-            socketMessage.setTargetParticipantId(newParticipant.getParticipantId());
-            socketMessage.setTargetName(displayName);
-            socketMessage.setAction("JOIN_REQUEST");
-
-            messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode + "/waiting", socketMessage);
-
-            return newParticipant;
-        }
-    }
-
-    @Transactional
-    // Host duyệt vào phòng: bắt buộc actor là HOST của đúng meetingCode.
-    public MeetingParticipant admit(Long actorParticipantId, Long participantId, String meetingCode) {
-        assertHostActionPermission(actorParticipantId, meetingCode);
-
-        // 1. Tìm trực tiếp bằng Khóa chính (Nhanh nhất, hỗ trợ cả User lẫn Guest)
-        MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
-
-        // 2. [QUAN TRỌNG] Kiểm tra chéo: Người này có thực sự đang xin vào phòng này không?
-        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
-            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
-        }
-
-        // 3. Kiểm tra trạng thái
-        if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS);
-        }
-
-        participant.setParticipantStatus(ParticipantStatus.ACCEPT);
-        return meetingParticipantRepository.save(participant);
-    }
-
-    @Transactional
-    public MeetingParticipant reject(Long actorParticipantId, Long participantId, String meetingCode) {
-        // Kiểm tra xem có đúng là host không ? Nếu không phải throw Exception
-        assertHostActionPermission(actorParticipantId, meetingCode);
-
-        MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
-
-        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
-            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
-        }
-
-        if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
-            throw new BusinessException(ErrorCode.INVALID_STATUS);
-        }
-
-        participant.setParticipantStatus(ParticipantStatus.REJECT);
-        return meetingParticipantRepository.save(participant);
-    }
-
-    @Transactional
-    public void cancel(Long targetParticipantId, String meetingCode, String targetName) {
-        MeetingParticipant participant = meetingParticipantRepository.findById(targetParticipantId)
-                .orElse(null);
-
-        if (participant == null) {
-            return;
-        }
-
-        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
-            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
-        }
-
-        if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
-            return;
-        }
-
-        String resolvedTargetName = targetName;
-        if (resolvedTargetName == null || resolvedTargetName.isBlank()) {
-            resolvedTargetName = participant.getUser() != null
-                    ? participant.getUser().getFullName()
-                    : participant.getGuestName();
-        }
-
-        meetingParticipantRepository.delete(participant);
-
-        MeetingWsMessage message = new MeetingWsMessage();
-        message.setAction("WAITING_CANCELLED");
-        message.setMeetingCode(meetingCode);
-        message.setTargetParticipantId(targetParticipantId);
-        message.setTargetName(resolvedTargetName);
-
-        messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, message);
-
-        log.info("Sent waiting cancelled to meeting topic: meetingCode={}, targetParticipantId={}",
-                meetingCode, targetParticipantId);
-    }
+//    @Transactional
+//    public MeetingParticipant handleParticipantJoin(String email, String meetingCode, GuestJoinRequest guestRequest) {
+//        Meeting meeting = meetingRepository.findByMeetingCode(meetingCode)
+//                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
+//
+//        User user = null;
+//        if (!email.equals("anonymousUser")) {
+//            user = userRepository.findByEmail(email)
+//                    .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+//        }
+//
+//        // Bắt lỗi nếu không phải User cũng không truyền GuestInfo đủ
+//        if (user == null && (guestRequest == null
+//                || guestRequest.getGuestId() == null
+//                || guestRequest.getGuestId().isBlank()
+//                || guestRequest.getGuestName() == null
+//                || guestRequest.getGuestName().isBlank())) {
+//            throw new BusinessException(ErrorCode.DATA_NOT_ENOUGH);
+//        }
+//
+//        boolean isHost = (user != null && user.getId().equals(meeting.getHost().getId()));
+//
+//        // 1. Kiểm tra Participant đã tồn tại chưa
+//        Optional<MeetingParticipant> existingOpt = user != null
+//                ? meetingParticipantRepository.findByMeetingIdAndUserId(meeting.getId(), user.getId())
+//                : meetingParticipantRepository.findByMeetingIdAndGuestId(meeting.getId(), guestRequest.getGuestId());
+//
+//        if (existingOpt.isPresent()) {
+//            MeetingParticipant existing = existingOpt.get();
+//            // Trường hợp đã từng vào trước đó:
+//            // - Host luôn được vào lại
+//            // - Người đã ACCEPT được vào lại
+//            // - WAITING/REJECT giữ nguyên để tránh bypass quy trình duyệt
+//            if (isHost || existing.getParticipantStatus() == ParticipantStatus.ACCEPT) {
+//                existing.setParticipantStatus(ParticipantStatus.ACCEPT);
+//                return meetingParticipantRepository.save(existing);
+//            }
+//            if (existing.getParticipantStatus() == ParticipantStatus.REJECT) {
+//                existing.setParticipantStatus(ParticipantStatus.WAITING);
+//                existing = meetingParticipantRepository.save(existing);
+//
+//                String displayName = existing.getUser() != null
+//                        ? existing.getUser().getFullName()
+//                        : existing.getGuestName();
+//
+//                MeetingWsMessage socketMessage = new MeetingWsMessage();
+//                socketMessage.setMeetingCode(meetingCode);
+//                socketMessage.setTargetParticipantId(existing.getParticipantId());
+//                socketMessage.setTargetName(displayName);
+//                socketMessage.setAction("JOIN_REQUEST");
+//
+//                messagingTemplate.convertAndSend(
+//                        "/topic/meeting/" + meetingCode + "/waiting",
+//                        socketMessage
+//                );
+//
+//                return existing;
+//            }
+//            return existing;
+//        }
+//
+//        // 2. Tạo mới Participant
+//        MeetingParticipant newParticipant = new MeetingParticipant();
+//        newParticipant.setMeeting(meeting);
+//
+//        String displayName;
+//        if (user != null) {
+//            newParticipant.setUser(user);
+//            displayName = user.getFullName();
+//        } else {
+//            newParticipant.setGuestId(guestRequest.getGuestId());
+//            newParticipant.setGuestName(guestRequest.getGuestName());
+//            displayName = guestRequest.getGuestName();
+//        }
+//
+//        // 3. Phân quyền và Trạng thái
+//        if (isHost) {
+//            newParticipant.setRole(Role.HOST);
+//            newParticipant.setParticipantStatus(ParticipantStatus.ACCEPT);
+//            return meetingParticipantRepository.save(newParticipant);
+//        } else {
+//            newParticipant.setRole(Role.PARTICIPANT);
+//            newParticipant.setParticipantStatus(ParticipantStatus.WAITING);
+//            newParticipant = meetingParticipantRepository.save(newParticipant);
+//
+//            // 4. BẮN THÔNG BÁO WEBSOCKET CHO HOST (Phòng chờ)
+//            MeetingWsMessage socketMessage = new MeetingWsMessage();
+//            socketMessage.setMeetingCode(meetingCode);
+//            socketMessage.setTargetParticipantId(newParticipant.getParticipantId());
+//            socketMessage.setTargetName(displayName);
+//            socketMessage.setAction("JOIN_REQUEST");
+//
+//            messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode + "/waiting", socketMessage);
+//
+//            return newParticipant;
+//        }
+//    }
+//
+//    @Transactional
+//    // Host duyệt vào phòng: bắt buộc actor là HOST của đúng meetingCode.
+//    public MeetingParticipant admit(Long actorParticipantId, Long participantId, String meetingCode) {
+//        //ok
+//        assertHostActionPermission(actorParticipantId, meetingCode);
+//
+//
+//        //ok
+//        // 1. Tìm trực tiếp bằng Khóa chính (Nhanh nhất, hỗ trợ cả User lẫn Guest)
+//        MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
+//                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
+//
+//        // 2. [QUAN TRỌNG] Kiểm tra chéo: Người này có thực sự đang xin vào phòng này không?
+//        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
+//            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+//        }
+//
+//        // 3. Kiểm tra trạng thái
+//        if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
+//            throw new BusinessException(ErrorCode.INVALID_STATUS);
+//        }
+//
+//        participant.setParticipantStatus(ParticipantStatus.ACCEPT);
+//        return meetingParticipantRepository.save(participant);
+//    }
+//
+//    @Transactional
+//    public MeetingParticipant reject(Long actorParticipantId, Long participantId, String meetingCode) {
+//        // Kiểm tra xem có đúng là host không ? Nếu không phải throw Exception
+//        assertHostActionPermission(actorParticipantId, meetingCode);
+//
+//        MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
+//                .orElseThrow(() -> new BusinessException(ErrorCode.DATA_NOT_FOUND));
+//
+//        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
+//            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+//        }
+//
+//        if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
+//            throw new BusinessException(ErrorCode.INVALID_STATUS);
+//        }
+//
+//        participant.setParticipantStatus(ParticipantStatus.REJECT);
+//        return meetingParticipantRepository.save(participant);
+//    }
+//
+//    @Transactional
+//    public void cancel(Long targetParticipantId, String meetingCode, String targetName) {
+//        MeetingParticipant participant = meetingParticipantRepository.findById(targetParticipantId)
+//                .orElse(null);
+//
+//        if (participant == null) {
+//            return;
+//        }
+//
+//        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
+//            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+//        }
+//
+//        if (participant.getParticipantStatus() != ParticipantStatus.WAITING) {
+//            return;
+//        }
+//
+//        String resolvedTargetName = targetName;
+//        if (resolvedTargetName == null || resolvedTargetName.isBlank()) {
+//            resolvedTargetName = participant.getUser() != null
+//                    ? participant.getUser().getFullName()
+//                    : participant.getGuestName();
+//        }
+//
+//        meetingParticipantRepository.delete(participant);
+//
+//        MeetingWsMessage message = new MeetingWsMessage();
+//        message.setAction("WAITING_CANCELLED");
+//        message.setMeetingCode(meetingCode);
+//        message.setTargetParticipantId(targetParticipantId);
+//        message.setTargetName(resolvedTargetName);
+//
+//        messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, message);
+//
+//        log.info("Sent waiting cancelled to meeting topic: meetingCode={}, targetParticipantId={}",
+//                meetingCode, targetParticipantId);
+//    }
 
     public void saveInvitedUser(String meetingCode, List<String> invitedEmails) {
         Meeting meeting = this.meetingRepository.findByMeetingCode(meetingCode)
@@ -238,21 +241,21 @@ public class ParticipantService {
         }
     }
 
-    // Validate quyền thao tác của Host tại backend để tránh giả mạo payload từ FE.
-    private void assertHostActionPermission(Long actorParticipantId, String meetingCode) {
-        if (actorParticipantId == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-
-        MeetingParticipant actor = meetingParticipantRepository.findById(actorParticipantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-
-        if (!actor.getMeeting().getMeetingCode().equals(meetingCode)) {
-            throw new BusinessException(ErrorCode.NOT_PERMIT);
-        }
-
-        if (actor.getRole() != Role.HOST || actor.getParticipantStatus() != ParticipantStatus.ACCEPT) {
-            throw new BusinessException(ErrorCode.NOT_PERMIT);
-        }
-    }
+//    // Validate quyền thao tác của Host tại backend để tránh giả mạo payload từ FE.
+//    private void assertHostActionPermission(Long actorParticipantId, String meetingCode) {
+//        if (actorParticipantId == null) {
+//            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+//        }
+//
+//        MeetingParticipant actor = meetingParticipantRepository.findById(actorParticipantId)
+//                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+//
+//        if (!actor.getMeeting().getMeetingCode().equals(meetingCode)) {
+//            throw new BusinessException(ErrorCode.NOT_PERMIT);
+//        }
+//
+//        if (actor.getRole() != Role.HOST || actor.getParticipantStatus() != ParticipantStatus.ACCEPT) {
+//            throw new BusinessException(ErrorCode.NOT_PERMIT);
+//        }
+//    }
 }

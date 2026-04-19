@@ -5,6 +5,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -21,7 +22,15 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
-    // Chỉ định dùng Pool đã tạo ở AsyncConfig
+    @Value("${app.mail.from}")
+    private String mailFrom;
+
+    @Value("${app.mail.from}")
+    private String mailFromName;
+
+    @Value("${app.frontend.base-url}")
+    private String frontendBaseUrl;
+
     @Async("mailTaskExecutor")
     public void sendVerificationEmail(String toEmail, String verifyToken) {
         try {
@@ -51,36 +60,64 @@ public class EmailService {
     }
 
     @Async("mailTaskExecutor")
-    public void sendMeetingInvitation(String toEmail, String hostName, String meetingTitle, String meetingTime, String joinLink, String meetingCode) {
+    public void sendMeetingInvitation(
+            String toEmail,
+            String hostName,
+            String meetingTitle,
+            String meetingTime,
+            String meetingCode
+    ) {
+        if (toEmail == null || toEmail.isBlank()) {
+            log.warn("Skip sending email because address is invalid");
+            return;
+        }
+
         try {
+            String joinLink = buildJoinLink(meetingCode);
+
             MimeMessage message = mailSender.createMimeMessage();
-            // Đặt tham số multipart = true để gửi được HTML có định dạng phức tạp
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("noreply@googlemeetclone.com", "Kallio");
+            helper.setFrom(mailFrom, mailFromName);
             helper.setTo(toEmail);
             helper.setSubject("Thư mời tham gia cuộc họp: " + meetingTitle);
 
-            // Truyền dữ liệu vào Template
-            Context context = new Context();
-            context.setVariable("hostName", hostName);
-            context.setVariable("meetingTitle", meetingTitle);
-            context.setVariable("meetingTime", meetingTime);
-            context.setVariable("joinLink", joinLink);
-            context.setVariable("meetingCode", meetingCode);
+            String htmlContent = buildInvitationTemplate(
+                    hostName,
+                    meetingTitle,
+                    meetingTime,
+                    joinLink,
+                    meetingCode
+            );
 
-            // Chỉ định file HTML template (nằm trong thư mục resources/templates/email/)
-            String htmlContent = templateEngine.process("email/meeting-invitation", context);
             helper.setText(htmlContent, true);
-
             mailSender.send(message);
 
-            log.info("Đã gửi email lời mời họp thành công tới: {}", toEmail);
+            log.info("Sent meeting invitation to: {}", toEmail);
 
-        } catch (MessagingException | UnsupportedEncodingException e) {
-            log.error("Lỗi khi gửi email lời mời họp tới {}: {}", toEmail, e.getMessage());
-            // Có thể dùng chung exception của bạn hoặc tạo mới InvitationEmailException
-            throw new EmailSendingException("Không thể gửi email lời mời. Vui lòng thử lại sau.", e);
+        } catch (Exception e) {
+            log.error("Failed to send email to {}: {}", toEmail, e.getMessage(), e);
         }
+    }
+
+    private String buildJoinLink(String meetingCode) {
+        return frontendBaseUrl + "/" + meetingCode;
+    }
+
+    private String buildInvitationTemplate(
+            String hostName,
+            String meetingTitle,
+            String meetingTime,
+            String joinLink,
+            String meetingCode
+    ) {
+        Context context = new Context();
+        context.setVariable("hostName", hostName);
+        context.setVariable("meetingTitle", meetingTitle);
+        context.setVariable("meetingTime", meetingTime);
+        context.setVariable("joinLink", joinLink);
+        context.setVariable("meetingCode", meetingCode);
+
+        return templateEngine.process("email/meeting-invitation", context);
     }
 }

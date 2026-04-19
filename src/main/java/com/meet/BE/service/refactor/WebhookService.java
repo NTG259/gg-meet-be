@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class WebhookService {
     private final MeetingRepository meetingRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
 
     /**
      * Hàm này được gọi tự động bởi Webhook của LiveKit khi phòng bị đóng
@@ -23,7 +23,6 @@ public class WebhookService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void autoEndMeeting(String meetingCode) {
-        // Dùng Optional ifPresentOrElse hoặc check bình thường
         Meeting meeting = meetingRepository.findByMeetingCode(meetingCode)
                 .orElse(null);
 
@@ -39,9 +38,6 @@ public class WebhookService {
         meeting.setEndTime(LocalDateTime.now());
         meetingRepository.save(meeting);
 
-        MeetingWsMessage socketMessage = new MeetingWsMessage();
-        socketMessage.setMeetingCode(meetingCode);
-        socketMessage.setAction("MEETING_ENDED");
-        messagingTemplate.convertAndSend("/topic/meeting/" + meetingCode, socketMessage);
+        notificationService.sendMeetingEnded(meetingCode);
     }
 }

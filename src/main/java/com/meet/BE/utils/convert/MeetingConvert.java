@@ -18,6 +18,8 @@ public class MeetingConvert {
         response.setStartTime(meeting.getStartTime());
         response.setEndTime(meeting.getEndTime());
         response.setLivekitToken(liveKitToken);
+        response.setTitle(meeting.getTitle());
+        response.setStartTime(meeting.getStartTime());
         return response;
     }
 }

@@ -28,7 +28,6 @@ spring:
 
 livekit:
   api-key: devkey
-#  api-secret: secret
   api-secret: 8f9d2c1a7b6e5f4d3c2b1a0e9f8d7c6b
   host: http://192.168.10.207:7880
   ws-url: ws://192.168.10.207:7880
@@ -45,5 +44,9 @@ logging:
 
 app:
   base-url: http://localhost:8080
+  mail:
+    from: truonggiang29122005@gmail.com
+  frontend :
+    base-url : http://100.93.168.24:3000
 
 
