@@ -7,7 +7,8 @@ import com.meet.BE.domain.request.ScheduleMeetingRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
 import com.meet.BE.service.InstantMeetingService;
 import com.meet.BE.service.ScheduleMeetingService;
-import com.meet.BE.service.UserService;
+import com.meet.BE.service.refactor.UserService;
+import com.meet.BE.service.refactor.MeetingSessionService;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import com.meet.BE.utils.security.SecurityUtils;
@@ -15,7 +16,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class MeetingController {
     private final ScheduleMeetingService scheduleMeetingService;
     private final InstantMeetingService instantMeetingService;
+    private final MeetingSessionService meetingSessionService;
     private final UserService userService;
 
     @PostMapping
@@ -34,7 +35,7 @@ public class MeetingController {
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
         User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
-        MeetingResponseDTO response = instantMeetingService.createMeeting(currentUser, title);
+        MeetingResponseDTO response = meetingSessionService.createInstantMeeting(currentUser, title);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 new ApiResponse<>(response, "Tạo phòng thành công", null, HttpStatus.CREATED.value())
@@ -49,9 +50,23 @@ public class MeetingController {
         // Lấy email user nếu đã đăng nhập, nếu không có thì trả về null
         String currentUserEmail = SecurityUtils.getCurrentUserLogin().orElse(null);
 
-        // Chuyển toàn bộ logic xử lý (User vs Guest) vào Service
-        MeetingResponseDTO response = instantMeetingService.processJoinMeeting(currentUserEmail, meetingCode, guestRequest);
+//        // Chuyển toàn bộ logic xử lý (User vs Guest) vào Service
+//        MeetingResponseDTO response = instantMeetingService.processJoinMeeting(currentUserEmail, meetingCode, guestRequest);
 
+        MeetingResponseDTO response = null;
+
+        if (!currentUserEmail.equals("anonymousUser")) {
+            User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
+            response = this.meetingSessionService.joinRoomByUser(
+                    currentUser,
+                    meetingCode
+            );
+        } else {
+            response = this.meetingSessionService.joinRoomByGuest(
+                    guestRequest,
+                    meetingCode
+            );
+        }
         return ResponseEntity.ok(
                 new ApiResponse<>(response, "Xử lý tham gia phòng thành công", null, HttpStatus.OK.value())
         );

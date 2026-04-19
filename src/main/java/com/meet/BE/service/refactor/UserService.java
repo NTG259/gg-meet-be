@@ -1,4 +1,4 @@
-package com.meet.BE.service;
+package com.meet.BE.service.refactor;
 
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.dto.CreateUserDTO;
@@ -16,10 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Objects;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor

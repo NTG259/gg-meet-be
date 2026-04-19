@@ -6,8 +6,8 @@ import com.meet.BE.domain.dto.LoginDTO;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.response.LoginResponse;
 import com.meet.BE.domain.response.UserResponseDTO;
-import com.meet.BE.service.SecurityService;
-import com.meet.BE.service.UserService;
+import com.meet.BE.service.refactor.SecurityService;
+import com.meet.BE.service.refactor.UserService;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import com.meet.BE.utils.security.SecurityUtils;
@@ -27,8 +27,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
-import java.net.URI;
 
 @RestController
 @RequiredArgsConstructor

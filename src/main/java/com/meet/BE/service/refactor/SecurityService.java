@@ -1,6 +1,5 @@
-package com.meet.BE.service;
+package com.meet.BE.service.refactor;
 
-import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.entity.VerificationToken;
 import com.meet.BE.domain.response.LoginResponse;
 import com.meet.BE.repository.TokenRepository;
@@ -10,10 +9,8 @@ import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import com.nimbusds.jose.util.Base64;
 import lombok.RequiredArgsConstructor;
-import lombok.val;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +21,6 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 @Service

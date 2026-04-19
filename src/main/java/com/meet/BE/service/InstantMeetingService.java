@@ -4,7 +4,6 @@ import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.enums.ParticipantStatus;
 import com.meet.BE.domain.enums.Role;
 import com.meet.BE.domain.message.MeetingWsMessage;
-import com.meet.BE.domain.request.CreateMeetingRequest;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.domain.entity.Meeting;
 import com.meet.BE.domain.entity.User;
@@ -12,6 +11,7 @@ import com.meet.BE.domain.response.MeetingResponseDTO;
 import com.meet.BE.domain.enums.MeetingStatus;
 import com.meet.BE.repository.MeetingParticipantRepository;
 import com.meet.BE.repository.MeetingRepository;
+import com.meet.BE.service.refactor.SecurityService;
 import com.meet.BE.utils.convert.MeetingConvert;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
@@ -27,7 +27,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -47,71 +46,72 @@ public class InstantMeetingService {
     @Value("${livekit.api-secret}")
     private String apiSecret;
 
-    @Transactional(rollbackFor = Exception.class)
-    public MeetingResponseDTO createMeeting(User host, String title) throws Exception {
-        CreateMeetingRequest createMeetingRequest = new CreateMeetingRequest(title);
-        String meetingCode = UUID.randomUUID().toString().substring(0, 10);
-        livekit.LivekitRoom.CreateRoomRequest livekitRequest = livekit.LivekitRoom.CreateRoomRequest.newBuilder()
-                .setName(meetingCode)
-                .setEmptyTimeout(createMeetingRequest.getEmptyTimeout())
-                .setDepartureTimeout(createMeetingRequest.getDepartureTimeout())
-                .setMaxParticipants(createMeetingRequest.getMaxParticipants())
-                .build();
-
-        roomServiceClient.createRoom(
-                livekitRequest.getName(),
-                livekitRequest.getEmptyTimeout(),
-                livekitRequest.getMaxParticipants(),
-                "",
-                livekitRequest.getMetadata()
-        ).execute();
-
-        Meeting meeting = new Meeting();
-        meeting.setHost(host);
-        meeting.setMeetingCode(meetingCode);
-        meeting.setTitle(createMeetingRequest.getTitle());
-        meeting.setStatus(MeetingStatus.ACTIVE);
-        meeting.setCreatedAt(LocalDateTime.now());
-        meeting.setStartTime(LocalDateTime.now());
-        meeting.setRoomSid(meetingCode);
-        Meeting savedMeeting = meetingRepository.save(meeting);
-
-        // [ĐÃ FIX LỖI]: Phải lưu cả Host vào bảng MeetingParticipant
-        MeetingParticipant hostParticipant = new MeetingParticipant();
-        hostParticipant.setMeeting(savedMeeting);
-        hostParticipant.setUser(host);
-        hostParticipant.setRole(Role.HOST);
-        hostParticipant.setParticipantStatus(ParticipantStatus.ACCEPT);
-        hostParticipant = meetingParticipantRepository.save(hostParticipant);
-
-        // Tạo Livekit Token cho Host
-        AccessToken token = new AccessToken(apiKey, apiSecret);
-        token.setName(host.getFullName());
-        token.setIdentity(host.getId().toString());
-        token.addGrants(
-                new VideoGrant[]{
-                        new RoomJoin(true),
-                        new RoomName(meetingCode),
-                        new CanPublish(true),
-                        new CanSubscribe(true),
-                        new CanUpdateOwnMetadata(true),
-                }
-        );
-        String livekitToken = token.toJwt();
-
-        MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, livekitToken);
-        response.setParticipantStatus(ParticipantStatus.ACCEPT);
-        response.setTitle(meeting.getTitle());
-        // Tạo vé WebSocket Token (JWT Xịn)
-        String meetingToken = securityService.generateMeetingToken(
-                hostParticipant.getParticipantId(),
-                meetingCode,
-                Role.HOST.name() // Host tạo phòng nên mặc định truyền role HOST
-        );
-        response.setMeetingToken(meetingToken);
-
-        return response;
-    }
+//    @Transactional(rollbackFor = Exception.class)
+//    public MeetingResponseDTO createMeeting(User host, String title) throws Exception {
+//        CreateMeetingRequest createMeetingRequest = new CreateMeetingRequest(title);
+//        String meetingCode = UUID.randomUUID().toString().substring(0, 10);
+//        livekit.LivekitRoom.CreateRoomRequest livekitRequest = livekit.LivekitRoom.CreateRoomRequest.newBuilder()
+//                .setName(meetingCode)
+//                .setEmptyTimeout(createMeetingRequest.getEmptyTimeout())
+//                .setDepartureTimeout(createMeetingRequest.getDepartureTimeout())
+//                .setMaxParticipants(createMeetingRequest.getMaxParticipants())
+//                .build();
+//
+//        roomServiceClient.createRoom(
+//                livekitRequest.getName(),
+//                livekitRequest.getEmptyTimeout(),
+//                livekitRequest.getMaxParticipants(),
+//                "",
+//                livekitRequest.getMetadata()
+//        ).execute();
+//        // done
+//
+//        Meeting meeting = new Meeting();
+//        meeting.setHost(host);
+//        meeting.setMeetingCode(meetingCode);
+//        meeting.setTitle(createMeetingRequest.getTitle());
+//        meeting.setStatus(MeetingStatus.ACTIVE);
+//        meeting.setCreatedAt(LocalDateTime.now());
+//        meeting.setStartTime(LocalDateTime.now());
+//        meeting.setRoomSid(meetingCode);
+//        Meeting savedMeeting = meetingRepository.save(meeting);
+//
+//        // [ĐÃ FIX LỖI]: Phải lưu cả Host vào bảng MeetingParticipant
+//        MeetingParticipant hostParticipant = new MeetingParticipant();
+//        hostParticipant.setMeeting(savedMeeting);
+//        hostParticipant.setUser(host);
+//        hostParticipant.setRole(Role.HOST);
+//        hostParticipant.setParticipantStatus(ParticipantStatus.ACCEPT);
+//        hostParticipant = meetingParticipantRepository.save(hostParticipant);
+//
+//        // Tạo Livekit Token cho Host
+//        AccessToken token = new AccessToken(apiKey, apiSecret);
+//        token.setName(host.getFullName());
+//        token.setIdentity(host.getId().toString());
+//        token.addGrants(
+//                new VideoGrant[]{
+//                        new RoomJoin(true),
+//                        new RoomName(meetingCode),
+//                        new CanPublish(true),
+//                        new CanSubscribe(true),
+//                        new CanUpdateOwnMetadata(true),
+//                }
+//        );
+//        String livekitToken = token.toJwt();
+//
+//        MeetingResponseDTO response = MeetingConvert.ToResponse(savedMeeting, livekitToken);
+//        response.setParticipantStatus(ParticipantStatus.ACCEPT);
+//        response.setTitle(meeting.getTitle());
+//        // Tạo vé WebSocket Token (JWT Xịn)
+//        String meetingToken = securityService.generateMeetingToken(
+//                hostParticipant.getParticipantId(),
+//                meetingCode,
+//                Role.HOST.name() // Host tạo phòng nên mặc định truyền role HOST
+//        );
+//        response.setMeetingToken(meetingToken);
+//
+//        return response;
+//    }
 
     /**
      * Tham gia vào một cuộc họp đã tồn tại (Hỗ trợ cả User & Guest)
@@ -132,6 +132,7 @@ public class InstantMeetingService {
             GuestJoinRequest guestRequest,
             boolean waitingRoomEnabled
     ) {
+        // ok
         Meeting meeting = handleFindMeeting(meetingCode);
 
         if (meeting.getStatus() != MeetingStatus.ACTIVE) {

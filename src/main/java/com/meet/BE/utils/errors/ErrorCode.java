@@ -20,8 +20,8 @@ public enum ErrorCode {
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Meeting room not found"),
     NOT_PERMIT(HttpStatus.BAD_REQUEST, "Only the room owner has permission"),
     USER_NOT_IN_THIS_ROOM(HttpStatus.BAD_REQUEST, "User is not in the current meeting room"),
-
-
+    MEETING_SCHEDULED_NOT_STARTED(HttpStatus.BAD_REQUEST, "Scheduled meeting has not started yet"),
+    USER_BANNED_FROM_MEETING(HttpStatus.FORBIDDEN, "User has been banned from this meeting"),
 
     // DATA
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),

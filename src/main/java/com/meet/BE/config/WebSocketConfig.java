@@ -1,6 +1,6 @@
 package com.meet.BE.config;
 
-import com.meet.BE.service.SecurityService;
+import com.meet.BE.service.refactor.SecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;

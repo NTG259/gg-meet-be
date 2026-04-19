@@ -1,6 +1,6 @@
 package com.meet.BE.utils.security;
 
-import com.meet.BE.service.SecurityService;
+import com.meet.BE.service.refactor.SecurityService;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import com.nimbusds.jose.util.Base64;

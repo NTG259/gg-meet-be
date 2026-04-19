@@ -1,4 +1,4 @@
-package com.meet.BE.service;
+package com.meet.BE.service.refactor;
 
 import com.meet.BE.utils.errors.EmailSendingException;
 import jakarta.mail.MessagingException;

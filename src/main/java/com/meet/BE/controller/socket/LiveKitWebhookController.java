@@ -1,6 +1,6 @@
 package com.meet.BE.controller.socket;
 
-import com.meet.BE.service.WebhookService;
+import com.meet.BE.service.refactor.WebhookService;
 import io.livekit.server.WebhookReceiver;
 import livekit.LivekitWebhook;
 import lombok.RequiredArgsConstructor;

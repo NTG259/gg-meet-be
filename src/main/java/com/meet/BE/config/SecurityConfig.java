@@ -2,7 +2,7 @@ package com.meet.BE.config;
 
 import com.meet.BE.config.custom.CustomAccessDeniedHandler;
 import com.meet.BE.config.custom.CustomAuthenticationEntryPoint;
-import com.meet.BE.service.SecurityService;
+import com.meet.BE.service.refactor.SecurityService;
 import com.meet.BE.utils.security.CustomUserDetailsService;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;

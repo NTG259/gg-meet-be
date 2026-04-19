@@ -10,6 +10,8 @@ import com.meet.BE.domain.request.ScheduleMeetingRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
 import com.meet.BE.repository.MeetingParticipantRepository;
 import com.meet.BE.repository.MeetingRepository;
+import com.meet.BE.service.refactor.EmailService;
+import com.meet.BE.service.refactor.UserService;
 import com.meet.BE.utils.convert.MeetingConvert;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
