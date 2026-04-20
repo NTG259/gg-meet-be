@@ -66,8 +66,12 @@ public class ParticipantEntityService {
     }
 
     public Optional<MeetingParticipant> findInvitedUser(Meeting meeting, String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+
         return meetingParticipantRepository
-                .findByMeetingIdAndEmail(meeting.getId(), email);
+                .findByMeetingIdAndEmailIgnoreCase(meeting.getId(), email.trim());
     }
     public Optional<MeetingParticipant> findExistingGuestParticipant(Meeting meeting, GuestJoinRequest guestRequest) {
         return meetingParticipantRepository
@@ -78,6 +82,13 @@ public class ParticipantEntityService {
             MeetingParticipant existing
     ) {
         ParticipantStatus status = existing.getParticipantStatus();
+
+        if (existing.getRole() == Role.HOST) {
+            // OLD: host rejoin reused the generic participant flow and could fall back to WAITING.
+            // NEW: keep host in ACCEPT so waiting-room permissions survive reconnect/rejoin.
+            existing.setParticipantStatus(ParticipantStatus.ACCEPT);
+            return meetingParticipantRepository.save(existing);
+        }
 
         // Nếu người dùng bị block
         if (status == ParticipantStatus.BLOCKED) {
@@ -97,6 +108,42 @@ public class ParticipantEntityService {
         }
 
         return existing;
+    }
+
+    public MeetingParticipant ensureHostParticipant(Meeting meeting, User host) {
+        Optional<MeetingParticipant> existingHost = findExistingUserParticipant(meeting, host);
+        if (existingHost.isPresent()) {
+            MeetingParticipant participant = existingHost.get();
+            participant.setUser(host);
+            participant.setRole(Role.HOST);
+            participant.setParticipantStatus(ParticipantStatus.ACCEPT);
+            return this.meetingParticipantRepository.save(participant);
+        }
+
+        Optional<MeetingParticipant> invitedHost = findInvitedUser(meeting, host.getEmail());
+        if (invitedHost.isPresent()) {
+            // OLD: scheduled hosts could be restored from INVITED rows as PARTICIPANT.
+            // NEW: upgrade that legacy row to HOST so waiting-room rules stay correct.
+            MeetingParticipant participant = invitedHost.get();
+            participant.setUser(host);
+            participant.setRole(Role.HOST);
+            participant.setParticipantStatus(ParticipantStatus.ACCEPT);
+            return this.meetingParticipantRepository.save(participant);
+        }
+
+        MeetingParticipant participant = new MeetingParticipant();
+        participant.setMeeting(meeting);
+        participant.setUser(host);
+        participant.setRole(Role.HOST);
+        participant.setParticipantStatus(ParticipantStatus.ACCEPT);
+        return this.meetingParticipantRepository.save(participant);
+    }
+
+    public List<MeetingParticipant> findWaitingParticipants(Meeting meeting) {
+        return this.meetingParticipantRepository.findAllByMeetingIdAndParticipantStatusOrderByCreatedAtAsc(
+                meeting.getId(),
+                ParticipantStatus.WAITING
+        );
     }
 
     public void removeParticipant(Long participantId) {

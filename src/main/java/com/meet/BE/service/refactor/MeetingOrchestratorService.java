@@ -10,17 +10,18 @@ import com.meet.BE.domain.request.CreateInstantMeetingRequest;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.domain.request.ScheduleMeetingRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
+import com.meet.BE.domain.response.WaitingRoomParticipantResponseDTO;
 import com.meet.BE.utils.convert.MeetingConvert;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
-import com.meet.BE.utils.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -109,13 +110,11 @@ public class MeetingOrchestratorService {
     ) {
         Meeting meeting = meetingEntityService.validateMeetingBeforeJoin(meetingCode);
 
+        // OLD: authenticated scheduled hosts could be restored from invited-email rows as PARTICIPANT,
+        // so they joined the room but never regained HOST waiting-room permissions.
+        // NEW: resolve host joins first and reuse existing participants before the invite fallback.
         MeetingParticipant participant =
-                participantService.handleInvitedJoin(
-                        meeting,
-                        currentUser.getEmail(),
-                        currentUser,
-                        null
-                );
+                participantService.handleAuthenticatedJoin(meeting, currentUser);
 
         MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
         response.setParticipantStatus(participant.getParticipantStatus());
@@ -222,6 +221,18 @@ public class MeetingOrchestratorService {
     public MeetingResponseDTO createScheduleMeeting(User host, ScheduleMeetingRequest request) {
 
         Meeting scheduleMeeting = this.meetingEntityService.createScheduleMeetingEntity(host, request);
+        this.participantEntityService.ensureHostParticipant(scheduleMeeting, host);
+
+        List<String> invitedEmails = request.getEmailList() == null
+                ? List.of()
+                : request.getEmailList().stream()
+                .filter(email -> email != null && !email.isBlank())
+                .map(String::trim)
+                .filter(email -> !email.equalsIgnoreCase(host.getEmail()))
+                .collect(java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toCollection(LinkedHashSet::new),
+                        List::copyOf
+                ));
 
         this.scheduleService.pushToSchedule(
                 scheduleMeeting.getId(),
@@ -229,9 +240,9 @@ public class MeetingOrchestratorService {
                         .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
                         .toEpochSecond());
 
-        this.participantEntityService.saveInvitedUser(scheduleMeeting, request.getEmailList());
+        this.participantEntityService.saveInvitedUser(scheduleMeeting, invitedEmails);
 
-        for (String email : request.getEmailList()) {
+        for (String email : invitedEmails) {
             this.emailService.sendMeetingInvitation(
                     email,
                     host.getFullName(),
@@ -257,5 +268,53 @@ public class MeetingOrchestratorService {
         Meeting activedMeeting = this.meetingEntityService.updateMeetingStatus(meeting, MeetingStatus.ACTIVE);
 
         return MeetingConvert.ToResponse(activedMeeting, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WaitingRoomParticipantResponseDTO> getWaitingParticipants(String meetingCode, Long actorParticipantId) {
+        MeetingParticipant actor = this.participantEntityService.getParticipantInMeeting(actorParticipantId, meetingCode);
+        this.permissionService.assertHostPermission(actor);
+
+        return this.participantEntityService.findWaitingParticipants(actor.getMeeting()).stream()
+                .map(this::mapWaitingParticipant)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingResponseDTO getJoinRequestStatus(String meetingCode, Long participantId) {
+        MeetingParticipant participant = this.participantEntityService.getParticipantInMeeting(participantId, meetingCode);
+        Meeting meeting = participant.getMeeting();
+
+        if (meeting.getStatus() == MeetingStatus.SCHEDULED) {
+            throw new BusinessException(ErrorCode.MEETING_SCHEDULED_NOT_STARTED);
+        }
+        if (meeting.getStatus() == MeetingStatus.ENDED) {
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
+        }
+
+        String liveKitToken = participant.getParticipantStatus() == ParticipantStatus.ACCEPT
+                ? this.liveKitService.buildLiveKitToken(participant, meetingCode)
+                : null;
+
+        MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, liveKitToken);
+        response.setParticipantStatus(participant.getParticipantStatus());
+        return response;
+    }
+
+    private WaitingRoomParticipantResponseDTO mapWaitingParticipant(MeetingParticipant participant) {
+        String participantName = participant.getGuestName();
+        if (participantName == null || participantName.isBlank()) {
+            participantName = participant.getUser() != null
+                    ? participant.getUser().getFullName()
+                    : participant.getEmail();
+        }
+
+        return WaitingRoomParticipantResponseDTO.builder()
+                .participantId(participant.getParticipantId())
+                .name(participantName)
+                .email(participant.getUser() != null ? participant.getUser().getEmail() : participant.getEmail())
+                .participantStatus(participant.getParticipantStatus())
+                .requestedAt(participant.getCreatedAt())
+                .build();
     }
 }

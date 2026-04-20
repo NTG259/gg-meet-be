@@ -22,6 +22,32 @@ public class ParticipantServiceRF {
     private final ParticipantEntityService participantEntityService;
 
     @Transactional
+    public MeetingParticipant handleAuthenticatedJoin(Meeting meeting, User user) {
+        if (meeting.getHost() != null && meeting.getHost().getId().equals(user.getId())) {
+            log.info(
+                    "Handling authenticated host join: meetingId={}, meetingCode={}, userId={}",
+                    meeting.getId(),
+                    meeting.getMeetingCode(),
+                    user.getId()
+            );
+            return this.participantEntityService.ensureHostParticipant(meeting, user);
+        }
+
+        Optional<MeetingParticipant> existingOpt =
+                participantEntityService.findExistingUserParticipant(meeting, user);
+        if (existingOpt.isPresent()) {
+            log.info(
+                    "Existing authenticated participant found: participantId={}, status={}",
+                    existingOpt.get().getParticipantId(),
+                    existingOpt.get().getParticipantStatus()
+            );
+            return participantEntityService.handleParticipantStatus(existingOpt.get());
+        }
+
+        return handleInvitedJoin(meeting, user.getEmail(), user, null);
+    }
+
+    @Transactional
     public MeetingParticipant handleGuestJoin(Meeting meeting, GuestJoinRequest guestRequest) {
         log.info(
                 "Handling guest join: meetingId={}, meetingCode={}, guestId={}, guestName={}",
