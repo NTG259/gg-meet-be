@@ -9,6 +9,7 @@ import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,24 +17,51 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ParticipantServiceRF {
     private final ParticipantEntityService participantEntityService;
 
     @Transactional
     public MeetingParticipant handleGuestJoin(Meeting meeting, GuestJoinRequest guestRequest) {
+        log.info(
+                "Handling guest join: meetingId={}, meetingCode={}, guestId={}, guestName={}",
+                meeting.getId(),
+                meeting.getMeetingCode(),
+                guestRequest != null ? guestRequest.getGuestId() : null,
+                guestRequest != null ? guestRequest.getGuestName() : null
+        );
         // Cho chức năng Guest
         Optional<MeetingParticipant> existingOpt = this.participantEntityService
                 .findExistingGuestParticipant(meeting, guestRequest);
         // Kiểm tra người này đã vào phòng lần nào chưa
         if (existingOpt.isPresent()) {
+            log.info(
+                    "Existing guest participant found: participantId={}, status={}",
+                    existingOpt.get().getParticipantId(),
+                    existingOpt.get().getParticipantStatus()
+            );
             return this.participantEntityService.handleParticipantStatus(existingOpt.get());
         } else {
-            return this.participantEntityService.createGuestParticipant(meeting, guestRequest);
+            MeetingParticipant created = this.participantEntityService.createGuestParticipant(meeting, guestRequest);
+            log.info(
+                    "Created waiting guest participant: participantId={}, status={}",
+                    created.getParticipantId(),
+                    created.getParticipantStatus()
+            );
+            return created;
         }
     }
 
     public MeetingParticipant handleInvitedJoin(Meeting meeting, String email, User user, GuestJoinRequest guest) {
         Optional<MeetingParticipant> invited = this.participantEntityService.findInvitedUser(meeting, email);
+        log.info(
+                "Handling invited join lookup: meetingId={}, meetingCode={}, email={}, invitedFound={}, userId={}",
+                meeting.getId(),
+                meeting.getMeetingCode(),
+                email,
+                invited.isPresent(),
+                user != null ? user.getId() : null
+        );
 
         if (invited.isPresent()) {
             MeetingParticipant participant = invited.get();
@@ -43,11 +71,18 @@ public class ParticipantServiceRF {
                 participant.setGuestId(guest.getGuestId());
                 participant.setGuestName(guest.getGuestName());
             }
+            log.info(
+                    "Invited participant matched: participantId={}, previousStatus={}",
+                    participant.getParticipantId(),
+                    participant.getParticipantStatus()
+            );
             return this.participantEntityService.handleParticipantStatus(participant);
         } else {
             if (user != null) {
+                log.info("No invited participant found, falling back to authenticated waiting flow: userId={}", user.getId());
                 return handleUserJoin(meeting, user);
             } else {
+                log.info("No invited participant found, falling back to guest waiting flow");
                 return handleGuestJoin(meeting, guest);
             }
         }
@@ -56,12 +91,31 @@ public class ParticipantServiceRF {
     public MeetingParticipant handleUserJoin(Meeting meeting, User user) {
         Optional<MeetingParticipant> existingOpt =
                 participantEntityService.findExistingUserParticipant(meeting, user);
+        log.info(
+                "Handling user join: meetingId={}, meetingCode={}, userId={}, existingFound={}",
+                meeting.getId(),
+                meeting.getMeetingCode(),
+                user.getId(),
+                existingOpt.isPresent()
+        );
         // Nếu đã từng vào
         if (existingOpt.isPresent()) {
+            log.info(
+                    "Existing user participant found: participantId={}, status={}",
+                    existingOpt.get().getParticipantId(),
+                    existingOpt.get().getParticipantStatus()
+            );
             return participantEntityService.handleParticipantStatus(existingOpt.get());
         }
         // Nếu user chưa từng vào thì phải waiting
-        return participantEntityService.createUserParticipant(meeting, user, ParticipantStatus.WAITING);
+        MeetingParticipant created = participantEntityService.createUserParticipant(meeting, user, ParticipantStatus.WAITING);
+        log.info(
+                "Created waiting user participant: participantId={}, userId={}, status={}",
+                created.getParticipantId(),
+                user.getId(),
+                created.getParticipantStatus()
+        );
+        return created;
     }
 
     @Transactional

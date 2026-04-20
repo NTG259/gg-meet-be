@@ -13,11 +13,14 @@ import com.meet.BE.domain.response.MeetingResponseDTO;
 import com.meet.BE.utils.convert.MeetingConvert;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
+import com.meet.BE.utils.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -33,6 +36,7 @@ public class MeetingOrchestratorService {
     private final ParticipantPermissionService permissionService;
     private final ParticipantEntityService participantEntityService;
     private final EmailService emailService;
+    private final ScheduleService scheduleService;
 
     @Transactional(rollbackFor = Exception.class)
     public MeetingResponseDTO createInstantMeeting(User host, String title) {
@@ -65,7 +69,6 @@ public class MeetingOrchestratorService {
         MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, livekitToken);
         response.setParticipantStatus(ParticipantStatus.ACCEPT);
         response.setMeetingToken(meetingToken);
-
         return response;
     }
 
@@ -220,6 +223,12 @@ public class MeetingOrchestratorService {
 
         Meeting scheduleMeeting = this.meetingEntityService.createScheduleMeetingEntity(host, request);
 
+        this.scheduleService.pushToSchedule(
+                scheduleMeeting.getId(),
+                scheduleMeeting.getStartTime()
+                        .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                        .toEpochSecond());
+
         this.participantEntityService.saveInvitedUser(scheduleMeeting, request.getEmailList());
 
         for (String email : request.getEmailList()) {
@@ -235,5 +244,18 @@ public class MeetingOrchestratorService {
         MeetingResponseDTO response = MeetingConvert.ToResponse(scheduleMeeting, null);
         response.setParticipantStatus(ParticipantStatus.INVITED);
         return response;
+    }
+
+    @Transactional
+    public MeetingResponseDTO activeMeeting(Long meetingId) {
+        Meeting meeting = this.meetingEntityService.findByMeetingId(meetingId);
+
+        if (meeting.getStatus() == MeetingStatus.ACTIVE) {
+            return MeetingConvert.ToResponse(meeting, null);
+        }
+
+        Meeting activedMeeting = this.meetingEntityService.updateMeetingStatus(meeting, MeetingStatus.ACTIVE);
+
+        return MeetingConvert.ToResponse(activedMeeting, null);
     }
 }

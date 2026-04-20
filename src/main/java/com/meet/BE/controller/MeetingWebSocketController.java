@@ -2,7 +2,6 @@ package com.meet.BE.controller;
 
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.message.MeetingWsMessage;
-import com.meet.BE.service.ParticipantService;
 import com.meet.BE.service.refactor.MeetingOrchestratorService;
 import com.meet.BE.service.refactor.ParticipantServiceRF;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Controller;
 @Slf4j
 public class MeetingWebSocketController {
 
-    private final ParticipantService participantService;
     private final MeetingOrchestratorService meetingOrchestratorService;
     private final ParticipantServiceRF participantServiceRF;
 

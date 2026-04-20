@@ -5,7 +5,6 @@ import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.domain.request.ScheduleMeetingRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
-import com.meet.BE.service.ScheduleMeetingService;
 import com.meet.BE.service.refactor.MeetingEntityService;
 import com.meet.BE.service.refactor.UserService;
 import com.meet.BE.service.refactor.MeetingOrchestratorService;
@@ -14,6 +13,7 @@ import com.meet.BE.utils.errors.ErrorCode;
 import com.meet.BE.utils.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/meetings")
 @RequiredArgsConstructor
+@Slf4j
 public class MeetingController {
-    private final ScheduleMeetingService scheduleMeetingService;
     private final MeetingEntityService meetingEntityService;
     private final MeetingOrchestratorService meetingOrchestratorService;
     private final UserService userService;
@@ -58,16 +58,25 @@ public class MeetingController {
     ) {
         // Lấy email user nếu đã đăng nhập, nếu không có thì trả về null
         String currentUserEmail = SecurityUtils.getCurrentUserLogin().orElse("anonymousUser");
+        log.info(
+                "Join request received: meetingCode={}, principal={}, guestId={}, guestName={}",
+                meetingCode,
+                currentUserEmail,
+                guestRequest != null ? guestRequest.getGuestId() : null,
+                guestRequest != null ? guestRequest.getGuestName() : null
+        );
 
         MeetingResponseDTO response = null;
 
         if (!"anonymousUser".equals(currentUserEmail)) {
+            log.info("Join request routed as authenticated user: meetingCode={}, email={}", meetingCode, currentUserEmail);
             User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
             response = this.meetingOrchestratorService.joinRoomByUser(
                     currentUser,
                     meetingCode
             );
         } else {
+            log.info("Join request routed as guest: meetingCode={}", meetingCode);
             response = this.meetingOrchestratorService.joinRoomByGuest(
                     guestRequest,
                     meetingCode

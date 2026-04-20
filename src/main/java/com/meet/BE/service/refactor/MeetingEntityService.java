@@ -74,6 +74,12 @@ public class MeetingEntityService {
         );
     }
 
+    public Meeting findByMeetingId(Long meetingId) {
+        return this.meetingRepository.findById(meetingId).orElseThrow(
+                () -> new BusinessException(ErrorCode.ROOM_NOT_FOUND)
+        );
+    }
+
     public Meeting validateMeetingBeforeDelete(String meetingCode) {
         Meeting meeting = findByMeetingCode(meetingCode);
         if (meeting.getStatus() != MeetingStatus.ACTIVE) {
