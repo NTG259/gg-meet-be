@@ -137,6 +137,16 @@ public class ParticipantEntityService {
         return participant;
     }
 
+    public MeetingParticipant getParticipantInMeeting(Long participantId, String meetingCode) {
+        if (participantId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Meeting meeting = this.meetingRepository.findByMeetingCode(meetingCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
+        return this.meetingParticipantRepository.findByMeetingIdAndParticipantId(meeting.getId(), participantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM));
+    }
+
     public MeetingParticipant getUserInMeeting(Long userId, String meetingCode) {
         if (userId == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);

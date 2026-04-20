@@ -1,4 +1,4 @@
-package com.meet.BE.controller.auth;
+package com.meet.BE.controller;
 
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.dto.CreateUserDTO;

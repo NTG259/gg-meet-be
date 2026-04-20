@@ -1,4 +1,4 @@
-package com.meet.BE.controller.socket;
+package com.meet.BE.controller;
 
 import com.meet.BE.service.refactor.WebhookService;
 import io.livekit.server.WebhookReceiver;

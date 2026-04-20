@@ -107,7 +107,12 @@ public class MeetingOrchestratorService {
         Meeting meeting = meetingEntityService.validateMeetingBeforeJoin(meetingCode);
 
         MeetingParticipant participant =
-                participantService.handleUserJoin(meeting, currentUser);
+                participantService.handleInvitedJoin(
+                        meeting,
+                        currentUser.getEmail(),
+                        currentUser,
+                        null
+                );
 
         MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
         response.setParticipantStatus(participant.getParticipantStatus());
@@ -162,7 +167,7 @@ public class MeetingOrchestratorService {
     @Transactional
     public MeetingParticipant admit(String meetingCode, Long targetParticipantId, Long hostId) {
 
-        MeetingParticipant host = this.participantEntityService.getUserInMeeting(hostId, meetingCode);
+        MeetingParticipant host = this.participantEntityService.getParticipantInMeeting(hostId, meetingCode);
         permissionService.assertHostPermission(host);
         MeetingParticipant participant = this.participantEntityService.validateParticipantInMeeting(targetParticipantId, meetingCode);
         participant = this.participantService.handleAcceptParticipant(participant);
@@ -175,7 +180,7 @@ public class MeetingOrchestratorService {
 
     @Transactional
     public void reject(String meetingCode, Long targetParticipantId, Long hostId) {
-        MeetingParticipant host = this.participantEntityService.getUserInMeeting(hostId, meetingCode);
+        MeetingParticipant host = this.participantEntityService.getParticipantInMeeting(hostId, meetingCode);
         permissionService.assertHostPermission(host);
 
         MeetingParticipant participant = this.participantEntityService.validateParticipantInMeeting(targetParticipantId, meetingCode);
@@ -203,7 +208,7 @@ public class MeetingOrchestratorService {
 
     @Transactional
     public void leaveMeeting(Long participantId, String meetingCode) {
-        MeetingParticipant participant = this.participantEntityService.getUserInMeeting(participantId, meetingCode);
+        MeetingParticipant participant = this.participantEntityService.getParticipantInMeeting(participantId, meetingCode);
 
         this.participantEntityService.updateParticipantStatus(participant, ParticipantStatus.LEFT);
 

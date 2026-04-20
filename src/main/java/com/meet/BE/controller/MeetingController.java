@@ -1,4 +1,4 @@
-package com.meet.BE.controller.rest;
+package com.meet.BE.controller;
 
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.entity.User;
@@ -14,6 +14,7 @@ import com.meet.BE.utils.errors.ErrorCode;
 import com.meet.BE.utils.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,14 @@ public class MeetingController {
     private final MeetingEntityService meetingEntityService;
     private final MeetingOrchestratorService meetingOrchestratorService;
     private final UserService userService;
+
+    private final StringRedisTemplate redisTemplate;
+
+    public void test() {
+        redisTemplate.opsForValue().set("test", "hello");
+        String value = redisTemplate.opsForValue().get("test");
+        System.out.println(value);
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<MeetingResponseDTO>> createMeeting(
@@ -48,14 +57,11 @@ public class MeetingController {
             @RequestBody(required = false) GuestJoinRequest guestRequest
     ) {
         // Lấy email user nếu đã đăng nhập, nếu không có thì trả về null
-        String currentUserEmail = SecurityUtils.getCurrentUserLogin().orElse(null);
-
-//        // Chuyển toàn bộ logic xử lý (User vs Guest) vào Service
-//        MeetingResponseDTO response = instantMeetingService.processJoinMeeting(currentUserEmail, meetingCode, guestRequest);
+        String currentUserEmail = SecurityUtils.getCurrentUserLogin().orElse("anonymousUser");
 
         MeetingResponseDTO response = null;
 
-        if (!currentUserEmail.equals("anonymousUser")) {
+        if (!"anonymousUser".equals(currentUserEmail)) {
             User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
             response = this.meetingOrchestratorService.joinRoomByUser(
                     currentUser,
@@ -91,7 +97,6 @@ public class MeetingController {
             @RequestParam(value = "participantId") Long participantId,
             @RequestParam(value = "meetingCode") String meetingCode
     ) throws Exception {
-        // Gọi hàm leave vừa tạo
         meetingOrchestratorService.leaveMeeting(participantId, meetingCode);
         return ResponseEntity.ok(
                 new ApiResponse<>(null, "Rời phòng thành công", null, HttpStatus.OK.value())

@@ -26,6 +26,12 @@ spring:
     prefix: classpath:/templates/
     suffix: .html
 
+  data:
+    redis:
+      host: 192.168.10.207
+      port: 6379
+      timeout: 60000
+
 livekit:
   api-key: devkey
   api-secret: 8f9d2c1a7b6e5f4d3c2b1a0e9f8d7c6b
