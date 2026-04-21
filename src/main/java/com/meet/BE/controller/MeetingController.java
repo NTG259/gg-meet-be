@@ -99,7 +99,7 @@ public class MeetingController {
     @GetMapping("/upcoming")
     public ResponseEntity<ApiResponse<PagedResponse<UpcomingMeetingItemResponse>>> getUpcomingMeetings(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "5") int size) {
         PagedResponse<UpcomingMeetingItemResponse> response = this.meetingEntityService.getUpcomingMeetings(page, size);
 
         return ResponseEntity.ok(

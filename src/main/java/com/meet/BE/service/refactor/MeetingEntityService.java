@@ -45,7 +45,7 @@ public class MeetingEntityService {
     }
 
     public Meeting createScheduleMeetingEntity(User host, ScheduleMeetingRequest request) {
-        String meetingCode = UUID.randomUUID().toString().substring(0, 10);
+        String meetingCode = UUID.randomUUID().toString().substring(0, 5);
         Meeting meeting = new Meeting();
         meeting.setHost(host);
         meeting.setMeetingCode(meetingCode);
