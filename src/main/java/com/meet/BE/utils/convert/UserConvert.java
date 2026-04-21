@@ -9,6 +9,7 @@ public class UserConvert {
         rs.setId(user.getId());
         rs.setFullName(user.getFullName());
         rs.setEmail(user.getEmail());
+        rs.setAvatar(user.getAvatar());
         return rs;
     }
 }

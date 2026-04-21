@@ -51,6 +51,7 @@ public class SecurityService {
         userToken.setId(loginResponse.getUser().getId());
         userToken.setFullName(loginResponse.getUser().getFullName());
         userToken.setEmail(loginResponse.getUser().getEmail());
+        userToken.setAvatar(loginResponse.getUser().getAvatar());
         userToken.setRole(loginResponse.getUser().getRole());
         Instant now = Instant.now();
         // Sửa lại dùng đúng accessTokenExpiration
@@ -74,6 +75,7 @@ public class SecurityService {
         userToken.setId(loginResponse.getUser().getId());
         userToken.setFullName(loginResponse.getUser().getFullName());
         userToken.setEmail(loginResponse.getUser().getEmail());
+        userToken.setAvatar(loginResponse.getUser().getAvatar());
         userToken.setRole(loginResponse.getUser().getRole());
         Instant now = Instant.now();
         Instant validity = now.plus(this.refreshTokenExpiration, ChronoUnit.SECONDS);

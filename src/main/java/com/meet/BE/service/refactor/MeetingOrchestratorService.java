@@ -42,7 +42,7 @@ public class MeetingOrchestratorService {
     @Transactional(rollbackFor = Exception.class)
     public MeetingResponseDTO createInstantMeeting(User host, String title) {
         // Tạo phòng họp nhanh
-        String meetingCode = UUID.randomUUID().toString().substring(0, 10);
+        String meetingCode = UUID.randomUUID().toString().substring(0, 5);
         try {
             CreateInstantMeetingRequest instantMeeting = new CreateInstantMeetingRequest(title);
             liveKitService.createInstantRoom(instantMeeting);

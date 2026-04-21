@@ -74,6 +74,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/meetings").hasRole("USER")
                         .requestMatchers(HttpMethod.DELETE, "/api/meetings").hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/api/meetings/upcoming").hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/api/auth/account").hasRole("USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/auth/account").hasRole("USER")
                         .requestMatchers("/api/meetings/**").permitAll()
                         .anyRequest().permitAll()
                 )

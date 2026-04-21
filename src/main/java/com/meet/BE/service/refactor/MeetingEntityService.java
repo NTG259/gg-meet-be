@@ -7,12 +7,19 @@ import com.meet.BE.domain.enums.MeetingStatus;
 import com.meet.BE.domain.enums.ParticipantStatus;
 import com.meet.BE.domain.enums.Role;
 import com.meet.BE.domain.request.ScheduleMeetingRequest;
+import com.meet.BE.domain.response.PagedResponse;
+import com.meet.BE.domain.response.UpcomingMeetingItemResponse;
 import com.meet.BE.repository.MeetingParticipantRepository;
 import com.meet.BE.repository.MeetingRepository;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
+import com.meet.BE.utils.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -23,6 +30,7 @@ public class MeetingEntityService {
 
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
+    private final UserService userService;
 
     public Meeting createInstantMeetingEntity(User host, String meetingCode, String title) {
         Meeting meeting = new Meeting();
@@ -91,5 +99,42 @@ public class MeetingEntityService {
     public Meeting updateMeetingStatus(Meeting meeting, MeetingStatus status) {
         meeting.setStatus(status);
         return this.meetingRepository.save(meeting);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<UpcomingMeetingItemResponse> getUpcomingMeetings(int page, int size) {
+        String currentUserEmail = SecurityUtils.getCurrentUserLogin()
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+        User currentUser = this.userService.handleFindUserByEmail(currentUserEmail);
+
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "startTime"));
+        Page<Meeting> meetingPage = this.meetingRepository.findUpcomingMeetingsForUser(
+                currentUser.getId(),
+                currentUser.getEmail(),
+                LocalDateTime.now(),
+                pageable
+        );
+
+        return new PagedResponse<>(
+                meetingPage.getContent().stream()
+                        .map(this::mapUpcomingMeeting)
+                        .toList(),
+                meetingPage.getNumber(),
+                meetingPage.getSize(),
+                meetingPage.getTotalElements(),
+                meetingPage.getTotalPages(),
+                meetingPage.isLast()
+        );
+    }
+
+    private UpcomingMeetingItemResponse mapUpcomingMeeting(Meeting meeting) {
+        return new UpcomingMeetingItemResponse(
+                meeting.getTitle(),
+                meeting.getStartTime(),
+                meeting.getEndTime(),
+                meeting.getHost().getFullName(),
+                meeting.getMeetingCode(),
+                meeting.getStatus()
+        );
     }
 }

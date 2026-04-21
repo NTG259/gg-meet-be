@@ -4,6 +4,7 @@ import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.dto.CreateUserDTO;
 import com.meet.BE.domain.dto.LoginDTO;
 import com.meet.BE.domain.entity.User;
+import com.meet.BE.domain.request.UpdateAccountRequest;
 import com.meet.BE.domain.response.LoginResponse;
 import com.meet.BE.domain.response.UserResponseDTO;
 import com.meet.BE.service.refactor.SecurityService;
@@ -26,7 +27,14 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
@@ -54,20 +62,19 @@ public class AuthController {
             LoginResponse loginResponse = new LoginResponse();
             User currentUserDB = this.userService.handleFindUserByEmail(loginDTO.getEmail());
 
-            if(currentUserDB != null) {
+            if (currentUserDB != null) {
                 LoginResponse.UserLogin userLogin = new LoginResponse.UserLogin(
                         currentUserDB.getId(),
                         currentUserDB.getEmail(),
                         currentUserDB.getFullName(),
+                        currentUserDB.getAvatar(),
                         currentUserDB.getRole()
                 );
                 loginResponse.setUser(userLogin);
             }
 
-            // Access token trả về trong Body
             loginResponse.setAccessToken(this.securityService.createAccessToken(loginResponse));
 
-            // Refresh token lưu vào Cookie và Database
             String refreshToken = securityService.createRefreshToken(loginResponse);
             this.userService.updateUserToken(refreshToken, loginResponse.getUser().getEmail());
 
@@ -80,7 +87,7 @@ public class AuthController {
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                    .body(new ApiResponse<>(loginResponse, "Đăng nhập thành công", null, HttpStatus.OK.value()));
+                    .body(new ApiResponse<>(loginResponse, "Login successful", null, HttpStatus.OK.value()));
 
         } catch (DisabledException e) {
             throw new BusinessException(ErrorCode.USER_DISABLED);
@@ -109,6 +116,7 @@ public class AuthController {
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
+                user.getAvatar(),
                 user.getRole()
         );
 
@@ -117,29 +125,35 @@ public class AuthController {
                 .body(userLogin);
     }
 
+    @PutMapping("/account")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> updateAccount(
+            @Valid @RequestBody UpdateAccountRequest request) {
+        String email = SecurityUtils.getCurrentUserLogin()
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+
+        ApiResponse<UserResponseDTO> response = this.userService.updateCurrentUserAccount(email, request);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<LoginResponse>> getRefreshToken(
             @CookieValue(name = "rf_token") String refreshToken
     ) {
-        // 1. Validate token
         Jwt decodedToken = this.securityUtils.checkValidRefreshToken(refreshToken);
         String email = decodedToken.getSubject();
 
-        // 2. Lấy và kiểm tra User (Cần có hàm này trong UserService)
         User user = this.userService.getUserByEmailAndRefreshToken(email, refreshToken);
         if (user == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        // 3. Tạo data response
         LoginResponse loginResponse = new LoginResponse();
         LoginResponse.UserLogin userLogin = new LoginResponse.UserLogin(
-                user.getId(), user.getEmail(), user.getFullName(), user.getRole()
+                user.getId(), user.getEmail(), user.getFullName(), user.getAvatar(), user.getRole()
         );
         loginResponse.setUser(userLogin);
         loginResponse.setAccessToken(this.securityService.createAccessToken(loginResponse));
 
-        // 4. Xử lý refresh token mới
         String newRefreshToken = securityService.createRefreshToken(loginResponse);
         this.userService.updateUserToken(newRefreshToken, email);
 
@@ -152,7 +166,7 @@ public class AuthController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(new ApiResponse<>(loginResponse, "Làm mới token thành công", null, HttpStatus.OK.value()));
+                .body(new ApiResponse<>(loginResponse, "Token refreshed successfully", null, HttpStatus.OK.value()));
     }
 
     @PostMapping("/logout")
@@ -162,7 +176,6 @@ public class AuthController {
 
         userService.updateUserToken(null, email);
 
-        // Clear rf_token cookie
         ResponseCookie deleteCookie = ResponseCookie
                 .from("rf_token", "")
                 .httpOnly(true)
@@ -184,7 +197,7 @@ public class AuthController {
                     body(
                             new ApiResponse<>(
                                     null,
-                                    "Xác thực email thành công",
+                                    "Email verification succeeded",
                                     null,
                                     HttpStatus.FOUND.value()
                             )
@@ -194,7 +207,7 @@ public class AuthController {
                     body(
                             new ApiResponse<>(
                                     null,
-                                    "Xác thực email thất bại",
+                                    "Email verification failed",
                                     null,
                                     HttpStatus.NOT_FOUND.value()
                             )
@@ -208,12 +221,12 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.OK).
                 body(
                         new ApiResponse<>(
-                        null,
-                        "Đã gửi mã xác thực tới " + email,
-                        null,
-                        HttpStatus.OK.value()
+                                null,
+                                "Verification code sent to " + email,
+                                null,
+                                HttpStatus.OK.value()
                         )
-                    );
+                );
 
     }
 }

@@ -2,6 +2,7 @@ package com.meet.BE.service.refactor;
 
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.dto.CreateUserDTO;
+import com.meet.BE.domain.request.UpdateAccountRequest;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.entity.VerificationToken;
 import com.meet.BE.domain.response.UserResponseDTO;
@@ -78,6 +79,25 @@ public class UserService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         user.setRefreshToken(token);
         this.userRepository.save(user);
+    }
+
+    @Transactional
+    public ApiResponse<UserResponseDTO> updateCurrentUserAccount(String email, UpdateAccountRequest request) {
+        User user = this.userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        user.setFullName(request.getFullName().trim());
+        user.setAvatar(request.getAvatar() == null || request.getAvatar().isBlank()
+                ? null
+                : request.getAvatar().trim());
+
+        User updatedUser = this.userRepository.save(user);
+        return new ApiResponse<>(
+                UserConvert.convertToUserResponseDTO(updatedUser),
+                "Account updated successfully",
+                null,
+                HttpStatus.OK.value()
+        );
     }
 
     public User getUserByEmailAndRefreshToken(String email, String refreshToken) {
