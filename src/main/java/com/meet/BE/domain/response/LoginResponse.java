@@ -1,7 +1,5 @@
 package com.meet.BE.domain.response;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.meet.BE.domain.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

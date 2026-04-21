@@ -41,6 +41,7 @@ public class MeetingEntityService {
         meeting.setCreatedAt(LocalDateTime.now());
         meeting.setStartTime(LocalDateTime.now());
         meeting.setRoomSid(meetingCode);
+        meeting.setIsScheduled(false);
         return meetingRepository.save(meeting);
     }
 
@@ -54,6 +55,7 @@ public class MeetingEntityService {
         meeting.setStatus(MeetingStatus.SCHEDULED);
         meeting.setStartTime(LocalDateTime.of(request.getMeetingDate(), request.getMeetingTime()));
         meeting.setRoomSid(meetingCode);
+        meeting.setIsScheduled(true);
         return meetingRepository.save(meeting);
     }
 

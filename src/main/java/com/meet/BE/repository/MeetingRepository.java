@@ -28,6 +28,7 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
                           or
                           (m.status = com.meet.BE.domain.enums.MeetingStatus.ACTIVE and (m.endTime is null or m.endTime >= :now))
                       )
+                      and m.isScheduled = true
                     order by m.startTime asc
                     """,
             countQuery = """

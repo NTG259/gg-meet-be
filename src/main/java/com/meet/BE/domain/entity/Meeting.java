@@ -34,6 +34,9 @@ public class Meeting {
     @Column(nullable = false, length = 20)
     private MeetingStatus status;
 
+    @Column(nullable = false)
+    private Boolean isScheduled;
+
     @Column(name = "start_time")
     private LocalDateTime startTime;
 

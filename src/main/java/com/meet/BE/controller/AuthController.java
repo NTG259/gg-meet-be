@@ -47,7 +47,7 @@ public class AuthController {
     private final SecurityUtils securityUtils;
 
     @Value("${jwt.refresh-token-expiration}")
-    private Long expiration;
+    private Long refreshTokenExpiration;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginDTO loginDTO) {
@@ -78,15 +78,10 @@ public class AuthController {
             String refreshToken = securityService.createRefreshToken(loginResponse);
             this.userService.updateUserToken(refreshToken, loginResponse.getUser().getEmail());
 
-            ResponseCookie cookie = ResponseCookie
-                    .from("rf_token", refreshToken)
-                    .httpOnly(true)
-                    .path("/")
-                    .maxAge(expiration)
-                    .build();
+            ResponseCookie refreshTokenCookie = buildRefreshTokenCookie(refreshToken);
 
             return ResponseEntity.ok()
-                    .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                    .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
                     .body(new ApiResponse<>(loginResponse, "Login successful", null, HttpStatus.OK.value()));
 
         } catch (DisabledException e) {
@@ -157,15 +152,10 @@ public class AuthController {
         String newRefreshToken = securityService.createRefreshToken(loginResponse);
         this.userService.updateUserToken(newRefreshToken, email);
 
-        ResponseCookie cookie = ResponseCookie
-                .from("rf_token", newRefreshToken)
-                .httpOnly(true)
-                .path("/")
-                .maxAge(expiration)
-                .build();
+        ResponseCookie refreshTokenCookie = buildRefreshTokenCookie(newRefreshToken);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
                 .body(new ApiResponse<>(loginResponse, "Token refreshed successfully", null, HttpStatus.OK.value()));
     }
 
@@ -176,7 +166,7 @@ public class AuthController {
 
         userService.updateUserToken(null, email);
 
-        ResponseCookie deleteCookie = ResponseCookie
+        ResponseCookie deleteRefreshTokenCookie = ResponseCookie
                 .from("rf_token", "")
                 .httpOnly(true)
                 .path("/")
@@ -185,7 +175,7 @@ public class AuthController {
 
         return ResponseEntity
                 .ok()
-                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, deleteRefreshTokenCookie.toString())
                 .build();
     }
 
@@ -228,5 +218,14 @@ public class AuthController {
                         )
                 );
 
+    }
+
+    private ResponseCookie buildRefreshTokenCookie(String refreshToken) {
+        return ResponseCookie
+                .from("rf_token", refreshToken)
+                .httpOnly(true)
+                .path("/")
+                .maxAge(refreshTokenExpiration)
+                .build();
     }
 }
