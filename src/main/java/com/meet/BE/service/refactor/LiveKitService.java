@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 @Service
@@ -76,12 +76,13 @@ public class LiveKitService {
                 new CanUpdateOwnMetadata(true),
         });
         try {
-            Map<String, Object> metadata = Map.of(
-                    "participantId", participant.getParticipantId(),
-                    "role", role.name(),
-                    "type", "USER",
-                    "meetingCode", meetingCode
-            );
+            LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("participantId", participant.getParticipantId());
+            metadata.put("role", role.name());
+            metadata.put("type", "USER");
+            metadata.put("meetingCode", meetingCode);
+            metadata.put("avatar", user.getAvatar() == null ? "" : user.getAvatar());
+
             token.setMetadata(objectMapper.writeValueAsString(metadata));
         } catch (Exception e) {
             throw new RuntimeException("Cannot build metadata", e);
