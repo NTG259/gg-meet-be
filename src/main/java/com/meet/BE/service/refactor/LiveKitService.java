@@ -14,6 +14,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -36,8 +37,7 @@ public class LiveKitService {
                 emptyTimeout,
                 maxParticipants,
                 "",
-                ""
-        ).execute();
+                "").execute();
     }
 
     public void deleteRoom(String roomName) {
@@ -54,12 +54,8 @@ public class LiveKitService {
         this.createLiveKitRoom(
                 meetingCode,
                 request.getEmptyTimeout(),
-                request.getMaxParticipants()
-        );
+                request.getMaxParticipants());
     }
-
-
-
 
     private String buildUserToken(MeetingParticipant participant, String meetingCode) {
         AccessToken token = new AccessToken(apiKey, apiSecret);
@@ -68,7 +64,7 @@ public class LiveKitService {
 
         token.setName(user.getFullName());
         token.setIdentity("user-" + user.getId().toString());
-        token.addGrants(new VideoGrant[]{
+        token.addGrants(new VideoGrant[] {
                 new RoomJoin(true),
                 new RoomName(meetingCode),
                 new CanPublish(role == Role.HOST || role == Role.PARTICIPANT),
@@ -96,7 +92,7 @@ public class LiveKitService {
 
         token.setName(guest.getGuestName());
         token.setIdentity("guest-" + guest.getGuestId());
-        token.addGrants(new VideoGrant[]{
+        token.addGrants(new VideoGrant[] {
                 new RoomJoin(true),
                 new RoomName(meetingCode),
                 new CanPublish(true),
@@ -108,16 +104,13 @@ public class LiveKitService {
                     "participantId", guest.getGuestId(),
                     "role", role.name(),
                     "type", "GUEST",
-                    "meetingCode", meetingCode
-            );
+                    "meetingCode", meetingCode);
             token.setMetadata(objectMapper.writeValueAsString(metadata));
         } catch (Exception e) {
             throw new RuntimeException("Cannot build metadata", e);
         }
         return token.toJwt();
     }
-
-
 
     public String buildLiveKitToken(MeetingParticipant participant, String meetingCode) {
         if (participant.getUser() != null) {

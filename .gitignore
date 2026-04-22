@@ -1,7 +1,10 @@
 HELP.md
 .gradle
-application-dev.yml
+.gradle-user-home/
 application-dev.properties
+.env
+.env.*
+!.env.example
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/

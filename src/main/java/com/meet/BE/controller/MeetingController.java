@@ -19,7 +19,6 @@ import com.meet.BE.utils.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -43,13 +42,6 @@ public class MeetingController {
         private final MeetingOrchestratorService meetingOrchestratorService;
         private final SecurityService securityService;
         private final UserService userService;
-        private final StringRedisTemplate redisTemplate;
-
-        public void test() {
-                redisTemplate.opsForValue().set("test", "hello");
-                String value = redisTemplate.opsForValue().get("test");
-                System.out.println(value);
-        }
 
         @PostMapping
         public ResponseEntity<ApiResponse<MeetingResponseDTO>> createMeeting(

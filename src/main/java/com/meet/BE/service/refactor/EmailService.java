@@ -25,7 +25,7 @@ public class EmailService {
     @Value("${app.mail.from}")
     private String mailFrom;
 
-    @Value("${app.mail.from}")
+    @Value("${app.mail.from-name:Kallio}")
     private String mailFromName;
 
     @Value("${app.frontend.base-url}")
@@ -37,7 +37,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("noreply@googlemeetclone.com", "Kallio");
+            helper.setFrom(mailFrom, mailFromName);
             helper.setTo(toEmail);
 
             helper.setSubject("Mã xác thực tài khoản Kallio của bạn");

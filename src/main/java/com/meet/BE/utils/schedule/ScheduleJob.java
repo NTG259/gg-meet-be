@@ -18,13 +18,13 @@ public class ScheduleJob {
     private final ScheduleService scheduleService;
     private final MeetingOrchestratorService meetingOrchestratorService;
 
-    @Scheduled(fixedRate = 2000)
+    @Scheduled(fixedRateString = "${app.scheduler.activation-fixed-rate-ms:2000}")
     public void run() {
 
         long now = Instant.now().getEpochSecond();
 
         Set<String> readyMeetings = scheduleService.getReadyMeetings(now);
-        log.warn("READY = {}", readyMeetings);
+        log.debug("Ready scheduled meetings: {}", readyMeetings);
         if (readyMeetings == null || readyMeetings.isEmpty()) return;
 
         for (String meetingId : readyMeetings) {

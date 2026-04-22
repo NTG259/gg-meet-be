@@ -3,6 +3,7 @@ package com.meet.BE.config;
 import com.meet.BE.service.refactor.SecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -16,44 +17,33 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import java.util.Arrays;
+
 @Configuration
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
 @Slf4j
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-    // Dùng để decode meeting token ngay tại bước CONNECT của WebSocket.
     private final SecurityService securityService;
+
+    @Value("${app.cors.allowed-origins:*}")
+    private String allowedOrigins;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic", "/queue");
-        /*
-            server -> client
-            subscribe mẫu :
-               - /topic/meeting/{code}/waiting
-               - /topic/meeting/{code}/chat
-             Note : topic để broadcast, queue để 1-1
-        */
         registry.setApplicationDestinationPrefixes("/api");
-        /*
-            client -> server
-            action mẫu :
-                - /api/meeting/join
-                - /api/meeting/admit
-         */
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/server")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(resolveAllowedOrigins())
                 .withSockJS();
-        // Connect : ws://localhost:8080/server
     }
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        // Interceptor này chạy cho mọi frame client -> server.
         registration.interceptors(new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -62,32 +52,32 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     return message;
                 }
 
-                // 1. Kiểm tra nếu là lệnh CONNECT (Lúc Frontend vừa gọi stompClient.connect)
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-
-                    // 2. Lấy Token từ Header "Meeting-Token" mà FE gửi lên
                     String meetingToken = accessor.getFirstNativeHeader("Meeting-Token");
 
                     if (meetingToken == null || meetingToken.isBlank()) {
-                        // Không cho phép vào WS nếu thiếu Meeting-Token.
                         throw new IllegalArgumentException("Unauthorized");
                     }
 
                     try {
-                        // 3. Giải mã Token lấy ParticipantId
                         Long participantId = securityService.getParticipantIdFromToken(meetingToken);
 
-                        // 4. Lưu participantId vào session để tái sử dụng ở các @MessageMapping
-                        // => FE không cần gửi participantId trong từng action admit/reject.
                         accessor.getSessionAttributes().put("participantId", participantId);
                         log.info("WebSocket authenticated participantId={}", participantId);
                     } catch (Exception e) {
                         log.error("WebSocket token invalid: {}", e.getMessage());
-                        throw new IllegalArgumentException("Unauthorized"); // Chặn không cho vào
+                        throw new IllegalArgumentException("Unauthorized");
                     }
                 }
                 return message;
             }
         });
+    }
+
+    private String[] resolveAllowedOrigins() {
+        return Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .toArray(String[]::new);
     }
 }
