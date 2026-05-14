@@ -23,7 +23,8 @@ public enum ErrorCode {
     MEETING_SCHEDULED_NOT_STARTED(HttpStatus.BAD_REQUEST, "Scheduled meeting has not started yet"),
     USER_BANNED_FROM_MEETING(HttpStatus.FORBIDDEN, "User has been banned from this meeting"),
     ROOM_DELETE_FAILED(HttpStatus.BAD_REQUEST, "Room cannot delete"),
-
+    PARTICIPANT_KICKED_FAILED(HttpStatus.BAD_REQUEST, "Failed to kick participant"),
+    PARTICIPANT_KICKED(HttpStatus.OK, "User kicked successfully"),
     // DATA
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
     EMAIL_ALREADY_EXIST(HttpStatus.CONFLICT, "Email is already in use"),

@@ -118,4 +118,12 @@ public class LiveKitService {
         }
         return buildGuestToken(participant, meetingCode);
     }
+
+    public void removeParticipant(String roomName, String identity) {
+        try {
+            roomServiceClient.removeParticipant(roomName, identity).execute();
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.PARTICIPANT_KICKED_FAILED);
+        }
+    }
 }

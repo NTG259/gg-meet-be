@@ -173,4 +173,11 @@ public class ParticipantServiceRF {
     public void endMeetingForEverybody() {
 
     }
+
+    @Transactional
+    public MeetingParticipant kickUser(Long targetParticipantId, String meetingCode, Boolean isBan) {
+        MeetingParticipant participant = participantEntityService.validateParticipantInMeeting(targetParticipantId, meetingCode);
+        ParticipantStatus status = isBan ? ParticipantStatus.BLOCK : ParticipantStatus.LEFT;
+        return participantEntityService.updateParticipantStatus(participant, status);
+    }
 }

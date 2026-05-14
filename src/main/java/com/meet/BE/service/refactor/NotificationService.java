@@ -53,6 +53,18 @@ public class NotificationService {
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
     }
 
+    public void sendUserKicked(String meetingCode, Long targetParticipantId, String participantName) {
+        MeetingWsMessage msg = buildMessage(
+                "USER_KICKED",
+                meetingCode,
+                targetParticipantId,
+                participantName
+        );
+
+        messagingTemplate.convertAndSend(participantTopic(meetingCode, targetParticipantId), msg);
+        messagingTemplate.convertAndSend(topic(meetingCode), msg);
+    }
+
     public void sendReject(String meetingCode, Long participantId, Long hostId, String name) {
 
         messagingTemplate.convertAndSend(

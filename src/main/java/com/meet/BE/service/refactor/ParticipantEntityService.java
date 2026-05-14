@@ -91,7 +91,7 @@ public class ParticipantEntityService {
         }
 
         // Nếu người dùng bị block
-        if (status == ParticipantStatus.BLOCKED) {
+        if (status == ParticipantStatus.BLOCK) {
             throw new BusinessException(ErrorCode.USER_BANNED_FROM_MEETING);
         }
 

@@ -48,4 +48,15 @@ public class MeetingWebSocketController {
         }
         return (Long) headerAccessor.getSessionAttributes().get("participantId");
     }
+
+    @MessageMapping("/meeting/kickout")
+    public void kickout(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
+        Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+        Boolean isBan = msg.getIsBan() != null ? msg.getIsBan() : true;
+        this.meetingOrchestratorService.kickout(
+                msg.getMeetingCode(),
+                msg.getTargetParticipantId(),
+                hostParticipantId,
+                isBan);
+    }
 }

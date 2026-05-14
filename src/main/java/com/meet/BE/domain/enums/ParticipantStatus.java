@@ -6,5 +6,5 @@ public enum ParticipantStatus {
     INVITED,
     REJECT,
     LEFT,
-    BLOCKED
+    BLOCK
 }
