@@ -43,6 +43,4 @@ out/
 
 .env
 .env.*
-!.env.example
-
 application-dev.yml
