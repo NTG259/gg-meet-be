@@ -323,7 +323,7 @@ public class MeetingOrchestratorService {
         MeetingParticipant host = this.participantEntityService.getParticipantInMeeting(hostId, meetingCode);
         permissionService.assertHostPermission(host);
 
-        MeetingParticipant kicked = this.participantService.kickUser(targetParticipantId, meetingCode, isBan);
+        MeetingParticipant kicked = this.participantService.kickParticipant(targetParticipantId, meetingCode, isBan);
 
         String identity = kicked.getUser() != null ? "user-" + kicked.getUser().getId() : "guest-" + kicked.getGuestId();
         this.liveKitService.removeParticipant(meetingCode, identity);
