@@ -44,14 +44,14 @@ public class LiveKitWebhookController {
             if ("room_finished".equals(eventName)) {
                 // RoomName(Livekit) == meetingCode
                 String meetingCode = event.getRoom().getName();
-                log.info(">>> [LIVEKIT WEBHOOK] Phòng {} đã đóng. Đang cập nhật DB...", meetingCode);
+                log.info(">>> [LIVEKIT WEBHOOK] Room {} finished. Updating DB...", meetingCode);
                 webhookService.autoEndMeeting(meetingCode);
             }
             // Trả về ACK cho Livekit, nếu không nó sẽ spam gửi lại
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {
-            log.error(">>> [LIVEKIT WEBHOOK ERROR]: Xác thực thất bại hoặc có lỗi - {}", e.getMessage());
+            log.error(">>> [LIVEKIT WEBHOOK ERROR]: Authentication failed or an error occurred - {}", e.getMessage());
             return ResponseEntity.status(401).build();
         }
     }
