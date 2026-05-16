@@ -175,7 +175,7 @@ public class ParticipantEntityService {
         }
 
         MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM));
 
         if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
             throw new BusinessException(ErrorCode.NOT_PERMIT);
