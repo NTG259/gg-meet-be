@@ -40,3 +40,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+.env
+.env.*
+!.env.example
+
+application-dev.yml
