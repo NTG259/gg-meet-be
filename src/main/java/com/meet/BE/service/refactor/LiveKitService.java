@@ -101,7 +101,8 @@ public class LiveKitService {
         });
         try {
             Map<String, Object> metadata = Map.of(
-                    "participantId", guest.getParticipantId(),
+                    "participantId", guest.getGuestId(),
+                    "guestId", guest.getGuestId(),
                     "role", role.name(),
                     "type", "GUEST",
                     "meetingCode", meetingCode);
