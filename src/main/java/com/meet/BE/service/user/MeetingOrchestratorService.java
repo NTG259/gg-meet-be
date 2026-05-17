@@ -329,6 +329,6 @@ public class MeetingOrchestratorService {
         this.liveKitService.removeParticipant(meetingCode, identity);
 
         String participantName = kicked.getUser() == null ? kicked.getGuestName() : kicked.getUser().getFullName();
-        this.notificationService.sendUserKicked(meetingCode, kicked.getParticipantId(), participantName);
+        this.notificationService.sendUserKicked(meetingCode, kicked.getParticipantId(), participantName, isBan);
     }
 }

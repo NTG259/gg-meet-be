@@ -55,13 +55,14 @@ public class NotificationService {
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
     }
 
-    public void sendUserKicked(String meetingCode, Long targetParticipantId, String participantName) {
+    public void sendUserKicked(String meetingCode, Long targetParticipantId, String participantName, Boolean isBan) {
         MeetingWsMessage msg = buildMessage(
                 "USER_KICKED",
                 meetingCode,
                 targetParticipantId,
                 participantName
         );
+        msg.setIsBan(isBan);
 
         messagingTemplate.convertAndSend(participantTopic(meetingCode, targetParticipantId), msg);
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
