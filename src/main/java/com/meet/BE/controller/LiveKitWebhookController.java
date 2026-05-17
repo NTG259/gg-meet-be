@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/livekit")
+@RequestMapping("api/livekit")
 @RequiredArgsConstructor
 @Slf4j
 public class LiveKitWebhookController {
