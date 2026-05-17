@@ -3,10 +3,11 @@ package com.meet.BE.controller;
 import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.response.PagedResponse;
 import com.meet.BE.domain.response.UpcomingMeetingItemResponse;
-import com.meet.BE.service.refactor.MeetingEntityService;
-import com.meet.BE.service.refactor.MeetingOrchestratorService;
-import com.meet.BE.service.refactor.SecurityService;
-import com.meet.BE.service.refactor.UserService;
+import com.meet.BE.service.user.MeetingEntityService;
+import com.meet.BE.service.user.MeetingOrchestratorService;
+import com.meet.BE.service.user.SecurityService;
+import com.meet.BE.service.user.UserService;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

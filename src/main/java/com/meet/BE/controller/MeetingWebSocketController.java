@@ -2,8 +2,9 @@ package com.meet.BE.controller;
 
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.message.MeetingWsMessage;
-import com.meet.BE.service.refactor.MeetingOrchestratorService;
-import com.meet.BE.service.refactor.ParticipantServiceRF;
+import com.meet.BE.service.user.MeetingOrchestratorService;
+import com.meet.BE.service.user.ParticipantServiceRF;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;

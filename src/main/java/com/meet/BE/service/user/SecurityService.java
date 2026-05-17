@@ -1,4 +1,4 @@
-package com.meet.BE.service.refactor;
+package com.meet.BE.service.user;
 
 import com.meet.BE.domain.entity.VerificationToken;
 import com.meet.BE.domain.response.LoginResponse;

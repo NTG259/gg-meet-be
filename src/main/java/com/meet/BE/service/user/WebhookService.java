@@ -1,4 +1,4 @@
-package com.meet.BE.service.refactor;
+package com.meet.BE.service.user;
 
 import com.meet.BE.domain.entity.Meeting;
 import com.meet.BE.domain.enums.MeetingStatus;

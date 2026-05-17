@@ -1,11 +1,12 @@
 package com.meet.BE.utils.schedule;
 
-import com.meet.BE.service.refactor.MeetingOrchestratorService;
-import com.meet.BE.service.refactor.ScheduleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import com.meet.BE.service.user.MeetingOrchestratorService;
+import com.meet.BE.service.user.ScheduleService;
 
 import java.time.Instant;
 import java.util.Set;

@@ -2,7 +2,7 @@ package com.meet.BE.config;
 
 import com.meet.BE.config.custom.CustomAccessDeniedHandler;
 import com.meet.BE.config.custom.CustomAuthenticationEntryPoint;
-import com.meet.BE.service.refactor.SecurityService;
+import com.meet.BE.service.user.SecurityService;
 import com.meet.BE.utils.security.CustomUserDetailsService;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;
@@ -72,6 +72,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/meetings").hasRole("USER")
                         .requestMatchers(HttpMethod.DELETE, "/api/meetings").hasRole("USER")
                         .requestMatchers(HttpMethod.GET, "/api/meetings/upcoming").hasRole("USER")

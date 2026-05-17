@@ -1,6 +1,5 @@
 package com.meet.BE.controller;
 
-import com.meet.BE.service.refactor.WebhookService;
 import io.livekit.server.WebhookReceiver;
 import livekit.LivekitWebhook;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import com.meet.BE.service.user.WebhookService;
 
 @RestController
 @RequestMapping("api/livekit")

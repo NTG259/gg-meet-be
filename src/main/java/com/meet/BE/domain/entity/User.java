@@ -49,6 +49,9 @@ public class User {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String refreshToken;
 
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT false")
+    private Boolean isDeleted = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

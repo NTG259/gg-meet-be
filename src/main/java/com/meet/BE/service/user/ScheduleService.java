@@ -1,4 +1,4 @@
-package com.meet.BE.service.refactor;
+package com.meet.BE.service.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;

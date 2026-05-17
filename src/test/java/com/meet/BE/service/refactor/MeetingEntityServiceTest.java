@@ -7,6 +7,9 @@ import com.meet.BE.domain.response.PagedResponse;
 import com.meet.BE.domain.response.UpcomingMeetingItemResponse;
 import com.meet.BE.repository.MeetingParticipantRepository;
 import com.meet.BE.repository.MeetingRepository;
+import com.meet.BE.service.user.MeetingEntityService;
+import com.meet.BE.service.user.UserService;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
