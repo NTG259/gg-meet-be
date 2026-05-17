@@ -3,6 +3,7 @@ package com.meet.BE.service.refactor;
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.enums.Role;
+import com.meet.BE.domain.enums.TrackType;
 import com.meet.BE.domain.request.CreateInstantMeetingRequest;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
@@ -176,6 +177,27 @@ public class LiveKitService {
             throw e;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SCREEN_SHARE_OPERATION_FAILED);
+        }
+    }
+
+    public void muteParticipantTrack(String roomName, String identity, TrackType trackType) {
+        try {
+            ParticipantInfo info = roomServiceClient.getParticipant(roomName, identity).execute().body();
+            if (info == null) {
+                throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+            }
+            TrackSource targetSource = trackType == TrackType.AUDIO ? TrackSource.MICROPHONE : TrackSource.CAMERA;
+            String trackSid = info.getTracksList().stream()
+                    .filter(track -> track.getSource() == targetSource && !track.getMuted())
+                    .map(TrackInfo::getSid)
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TRACK_NOT_ACTIVE));
+
+            roomServiceClient.mutePublishedTrack(roomName, identity, trackSid, true).execute();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.MUTE_OPERATION_FAILED);
         }
     }
 

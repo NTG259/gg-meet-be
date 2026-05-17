@@ -46,7 +46,8 @@ public enum ErrorCode {
     SCREEN_SHARE_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Screen share operation failed"),
 
     // MUTE
-    MUTE_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Mute operation failed");
+    MUTE_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Mute operation failed"),
+    TRACK_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "Participant does not have an active track of the requested type");
     private final HttpStatus status;
     private final String message;
     ErrorCode(HttpStatus status, String message) {

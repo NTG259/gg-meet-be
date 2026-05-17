@@ -4,6 +4,7 @@ import com.meet.BE.domain.ApiResponse;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.request.CancelJoinRequest;
 import com.meet.BE.domain.request.GuestJoinRequest;
+import com.meet.BE.domain.request.MuteParticipantRequest;
 import com.meet.BE.domain.request.ScheduleMeetingRequest;
 import com.meet.BE.domain.request.UpdateMeetingSettingsRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
@@ -15,6 +16,7 @@ import com.meet.BE.service.refactor.MeetingOrchestratorService;
 import com.meet.BE.service.refactor.RoomMuteService;
 import com.meet.BE.service.refactor.ScreenShareService;
 import com.meet.BE.service.refactor.SecurityService;
+import com.meet.BE.service.refactor.TargetedMuteService;
 import com.meet.BE.service.refactor.UserService;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
@@ -48,6 +50,7 @@ public class MeetingController {
         private final UserService userService;
         private final ScreenShareService screenShareService;
         private final RoomMuteService roomMuteService;
+        private final TargetedMuteService targetedMuteService;
 
         @PostMapping
         public ResponseEntity<ApiResponse<MeetingResponseDTO>> createMeeting(
@@ -252,6 +255,18 @@ public class MeetingController {
                 screenShareService.forceStopScreenShare(meetingCode, targetId, participantId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(null, "Screen share stopped", null, HttpStatus.OK.value()));
+        }
+
+        @PostMapping("/{meetingCode}/participants/{targetId}/mute")
+        public ResponseEntity<ApiResponse<Void>> muteParticipant(
+                        @PathVariable("meetingCode") String meetingCode,
+                        @PathVariable("targetId") Long targetId,
+                        @RequestHeader(value = "Meeting-Token", required = false) String meetingToken,
+                        @Valid @RequestBody MuteParticipantRequest request) {
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                targetedMuteService.muteParticipant(meetingCode, targetId, participantId, request.getTrackType());
+                return ResponseEntity.ok(
+                                new ApiResponse<>(null, "Participant track muted successfully", null, HttpStatus.OK.value()));
         }
 
         private Long resolveParticipantIdFromMeetingToken(String meetingToken) {
