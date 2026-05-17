@@ -39,7 +39,14 @@ public enum ErrorCode {
     DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "Data not found"),
 
     INVALID_STATUS(HttpStatus.BAD_REQUEST, "Invalid status"),
-    MEETING_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "Meeting has already ended");
+    MEETING_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "Meeting has already ended"),
+
+    // SCREEN SHARE
+    SCREEN_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "No active screen share track found for participant"),
+    SCREEN_SHARE_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Screen share operation failed"),
+
+    // MUTE
+    MUTE_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Mute operation failed");
     private final HttpStatus status;
     private final String message;
     ErrorCode(HttpStatus status, String message) {

@@ -5,12 +5,15 @@ import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.request.CancelJoinRequest;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.domain.request.ScheduleMeetingRequest;
+import com.meet.BE.domain.request.UpdateMeetingSettingsRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
 import com.meet.BE.domain.response.PagedResponse;
 import com.meet.BE.domain.response.UpcomingMeetingItemResponse;
 import com.meet.BE.domain.response.WaitingRoomParticipantResponseDTO;
 import com.meet.BE.service.refactor.MeetingEntityService;
 import com.meet.BE.service.refactor.MeetingOrchestratorService;
+import com.meet.BE.service.refactor.RoomMuteService;
+import com.meet.BE.service.refactor.ScreenShareService;
 import com.meet.BE.service.refactor.SecurityService;
 import com.meet.BE.service.refactor.UserService;
 import com.meet.BE.utils.errors.BusinessException;
@@ -23,6 +26,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,6 +46,8 @@ public class MeetingController {
         private final MeetingOrchestratorService meetingOrchestratorService;
         private final SecurityService securityService;
         private final UserService userService;
+        private final ScreenShareService screenShareService;
+        private final RoomMuteService roomMuteService;
 
         @PostMapping
         public ResponseEntity<ApiResponse<MeetingResponseDTO>> createMeeting(
@@ -185,6 +191,67 @@ public class MeetingController {
                                                 "Schedule request success",
                                                 null,
                                                 HttpStatus.CREATED.value()));
+        }
+
+        @PatchMapping("/{meetingCode}/settings")
+        public ResponseEntity<ApiResponse<Void>> updateMeetingSettings(
+                        @PathVariable("meetingCode") String meetingCode,
+                        @RequestHeader(value = "Meeting-Token", required = false) String meetingToken,
+                        @RequestBody UpdateMeetingSettingsRequest request) {
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                if (request.getAllowParticipantShareScreen() != null) {
+                        screenShareService.updateScreenShareSetting(meetingCode, participantId,
+                                        request.getAllowParticipantShareScreen());
+                }
+                if (request.getAllowParticipantUnmute() != null) {
+                        roomMuteService.updateMuteSetting(meetingCode, participantId,
+                                        request.getAllowParticipantUnmute());
+                }
+                return ResponseEntity.ok(
+                                new ApiResponse<>(null, "Room settings updated", null, HttpStatus.OK.value()));
+        }
+
+        @PostMapping("/{meetingCode}/screen-share-requests")
+        public ResponseEntity<ApiResponse<Void>> requestScreenShare(
+                        @PathVariable("meetingCode") String meetingCode,
+                        @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                screenShareService.requestScreenShare(meetingCode, participantId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(null, "Screen share request sent", null, HttpStatus.OK.value()));
+        }
+
+        @PostMapping("/{meetingCode}/screen-share-requests/{requesterId}/approve")
+        public ResponseEntity<ApiResponse<Void>> approveScreenShare(
+                        @PathVariable("meetingCode") String meetingCode,
+                        @PathVariable("requesterId") Long requesterId,
+                        @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                screenShareService.approveScreenShare(meetingCode, requesterId, participantId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(null, "Screen share approved", null, HttpStatus.OK.value()));
+        }
+
+        @PostMapping("/{meetingCode}/screen-share-requests/{requesterId}/reject")
+        public ResponseEntity<ApiResponse<Void>> rejectScreenShare(
+                        @PathVariable("meetingCode") String meetingCode,
+                        @PathVariable("requesterId") Long requesterId,
+                        @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                screenShareService.rejectScreenShare(meetingCode, requesterId, participantId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(null, "Screen share rejected", null, HttpStatus.OK.value()));
+        }
+
+        @PostMapping("/{meetingCode}/screen-share/{targetId}/stop")
+        public ResponseEntity<ApiResponse<Void>> forceStopScreenShare(
+                        @PathVariable("meetingCode") String meetingCode,
+                        @PathVariable("targetId") Long targetId,
+                        @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                screenShareService.forceStopScreenShare(meetingCode, targetId, participantId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(null, "Screen share stopped", null, HttpStatus.OK.value()));
         }
 
         private Long resolveParticipantIdFromMeetingToken(String meetingToken) {

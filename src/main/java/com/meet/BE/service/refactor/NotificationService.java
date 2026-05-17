@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -94,6 +96,42 @@ public class NotificationService {
                 null
         );
 
+        messagingTemplate.convertAndSend(topic(meetingCode), msg);
+    }
+
+    public void sendScreenShareRequested(String meetingCode, Long requesterId, String requesterName) {
+        MeetingWsMessage msg = buildMessage("SCREEN_SHARE_REQUESTED", meetingCode, requesterId, requesterName);
+        messagingTemplate.convertAndSend(topic(meetingCode), msg);
+    }
+
+    public void sendScreenShareApproved(String meetingCode, Long requesterId) {
+        MeetingWsMessage msg = buildMessage("SCREEN_SHARE_APPROVED", meetingCode, requesterId, null);
+        messagingTemplate.convertAndSend(participantTopic(meetingCode, requesterId), msg);
+    }
+
+    public void sendScreenShareRejected(String meetingCode, Long requesterId) {
+        MeetingWsMessage msg = buildMessage("SCREEN_SHARE_REJECTED", meetingCode, requesterId, null);
+        messagingTemplate.convertAndSend(participantTopic(meetingCode, requesterId), msg);
+    }
+
+    public void sendScreenShareStopped(String meetingCode, Long targetId) {
+        MeetingWsMessage msg = buildMessage("SCREEN_SHARE_STOPPED", meetingCode, targetId, null);
+        messagingTemplate.convertAndSend(topic(meetingCode), msg);
+    }
+
+    public void sendRoomSettingsChanged(String meetingCode, boolean allowParticipantShareScreen) {
+        MeetingWsMessage msg = new MeetingWsMessage();
+        msg.setMeetingCode(meetingCode);
+        msg.setAction("ROOM_SETTINGS_CHANGED");
+        msg.setExtra(Map.of("allowParticipantShareScreen", allowParticipantShareScreen));
+        messagingTemplate.convertAndSend(topic(meetingCode), msg);
+    }
+
+    public void sendMuteSettingsChanged(String meetingCode, boolean allowParticipantUnmute) {
+        MeetingWsMessage msg = new MeetingWsMessage();
+        msg.setMeetingCode(meetingCode);
+        msg.setAction("ROOM_SETTINGS_CHANGED");
+        msg.setExtra(Map.of("allowParticipantUnmute", allowParticipantUnmute));
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
     }
 
