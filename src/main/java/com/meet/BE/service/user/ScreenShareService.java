@@ -55,7 +55,7 @@ public class ScreenShareService {
         permissionService.assertHostPermission(host);
 
         MeetingParticipant requester = participantEntityService.getParticipantInMeeting(requesterId, meetingCode);
-        String identity = resolveIdentity(requester);
+        String identity = liveKitService.buildIdentity(requester);
 
         updateCanShareScreenOverride(meetingCode, identity, true);
 
@@ -74,7 +74,7 @@ public class ScreenShareService {
         permissionService.assertHostPermission(host);
 
         MeetingParticipant target = participantEntityService.getParticipantInMeeting(targetParticipantId, meetingCode);
-        String identity = resolveIdentity(target);
+        String identity = liveKitService.buildIdentity(target);
 
         liveKitService.muteScreenShareTrack(meetingCode, identity);
 
@@ -112,13 +112,6 @@ public class ScreenShareService {
             log.warn("Failed to update canShareScreenOverride to {} for identity: {} in room: {}",
                     canShare, identity, meetingCode);
         }
-    }
-
-    private String resolveIdentity(MeetingParticipant participant) {
-        if (participant.getUser() != null) {
-            return "user-" + participant.getUser().getId();
-        }
-        return "guest-" + participant.getGuestId();
     }
 
     private String resolveParticipantName(MeetingParticipant participant) {

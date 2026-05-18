@@ -64,13 +64,20 @@ public class LiveKitService {
                 request.getMaxParticipants());
     }
 
+    public String buildIdentity(MeetingParticipant participant) {
+        if (participant.getUser() != null) {
+            return participant.getUser().getId().toString();
+        }
+        return participant.getGuestId();
+    }
+
     private String buildUserToken(MeetingParticipant participant, String meetingCode) {
         AccessToken token = new AccessToken(apiKey, apiSecret);
         User user = participant.getUser();
         Role role = participant.getRole() != null ? participant.getRole() : Role.PARTICIPANT;
 
         token.setName(user.getFullName());
-        token.setIdentity(user.getId().toString());
+        token.setIdentity(buildIdentity(participant));
         token.addGrants(new VideoGrant[] {
                 new RoomJoin(true),
                 new RoomName(meetingCode),
@@ -98,7 +105,7 @@ public class LiveKitService {
         Role role = Role.PARTICIPANT;
 
         token.setName(guest.getGuestName());
-        token.setIdentity(guest.getGuestId());
+        token.setIdentity(buildIdentity(guest));
         token.addGrants(new VideoGrant[] {
                 new RoomJoin(true),
                 new RoomName(meetingCode),
@@ -164,6 +171,7 @@ public class LiveKitService {
         try {
             ParticipantInfo info = roomServiceClient.getParticipant(roomName, identity).execute().body();
             if (info == null) {
+                log.warn("Screen-share target not found in LiveKit room: room={}, identity={}", roomName, identity);
                 throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
             }
             String trackSid = info.getTracksList().stream()
@@ -184,6 +192,8 @@ public class LiveKitService {
         try {
             ParticipantInfo info = roomServiceClient.getParticipant(roomName, identity).execute().body();
             if (info == null) {
+                log.warn("Mute target not found in LiveKit room: room={}, identity={}, trackType={}",
+                        roomName, identity, trackType);
                 throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
             }
             TrackSource targetSource = trackType == TrackType.AUDIO ? TrackSource.MICROPHONE : TrackSource.CAMERA;

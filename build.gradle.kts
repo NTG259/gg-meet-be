@@ -41,6 +41,7 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
 	implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
 	runtimeOnly ("com.mysql:mysql-connector-j")
+	runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
 	testImplementation ("org.springframework.boot:spring-boot-starter-test")
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
