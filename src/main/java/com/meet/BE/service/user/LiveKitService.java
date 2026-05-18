@@ -243,10 +243,19 @@ public class LiveKitService {
 
     private List<String> listParticipantIdentities(String roomName) {
         try {
-            List<ParticipantInfo> participants = roomServiceClient.listParticipants(roomName).execute().body();
+            retrofit2.Response<List<ParticipantInfo>> resp =
+                    roomServiceClient.listParticipants(roomName).execute();
+            if (!resp.isSuccessful()) {
+                log.warn("listParticipants failed: room={}, httpCode={}, errorBody={}",
+                        roomName, resp.code(),
+                        resp.errorBody() != null ? resp.errorBody().string() : "<null>");
+                return List.of();
+            }
+            List<ParticipantInfo> participants = resp.body();
             if (participants == null) return List.of();
             return participants.stream().map(ParticipantInfo::getIdentity).toList();
         } catch (Exception e) {
+            log.warn("listParticipants threw: room={}, error={}", roomName, e.toString());
             return List.of();
         }
     }
