@@ -1,49 +1,42 @@
 # API Docs: Tắt Mic / Camera Từng Người Dùng
 
-## Endpoint
+## WebSocket
 
-```
-POST /api/meetings/{meetingCode}/participants/{targetId}/mute
-```
+**Destination:** `/app/meeting/mute`
 
-## Headers
+**Yêu cầu xác thực:** Meeting-Token phải được gửi trong header `Meeting-Token` lúc kết nối WebSocket (STOMP CONNECT).
 
-```
-Meeting-Token: <meeting_token>
-Content-Type: application/json
-```
-
-## Request Body
+## Request Payload
 
 ```json
 {
+    "meetingCode": "ABC123",
+    "targetParticipantId": 42,
     "trackType": "AUDIO"
 }
 ```
 
-> `trackType`: `"AUDIO"` hoặc `"VIDEO"`
+| Field | Type | Bắt buộc | Mô tả |
+|-------|------|----------|-------|
+| `meetingCode` | `string` | ✅ | Mã phòng họp |
+| `targetParticipantId` | `number` | ✅ | `participantId` (PK bảng `meeting_participants`) của người bị tắt |
+| `trackType` | `"AUDIO"` \| `"VIDEO"` | ✅ | Loại track cần tắt |
 
-## Response
+> **Lưu ý:** `targetParticipantId` là `participantId` của bảng `meeting_participants`, **không phải** `userId` của bảng `users`.
 
-**200 OK**
-```json
-{
-    "data": null,
-    "message": "Participant track muted successfully",
-    "error": null,
-    "statusCode": 200
-}
-```
+## Phân quyền
 
-## Error Codes
+Chỉ HOST mới được phép gửi lệnh này. Server tự động xác định host từ WebSocket session.
 
-| HTTP | Message |
-|------|---------|
-| 401 | User is not authenticated |
-| 400 | Only the room owner has permission |
-| 404 | User is not in the current meeting room |
-| 400 | Participant does not have an active track of the requested type |
-| 500 | Mute operation failed |
+## Error
+
+Nếu xảy ra lỗi, server đóng session hoặc không phản hồi. Các trường hợp lỗi:
+
+| Nguyên nhân | Mô tả |
+|-------------|-------|
+| Không phải HOST | Không có quyền thực hiện |
+| `targetParticipantId` không tồn tại | Người dùng không có trong phòng |
+| Track không active | Participant không có track loại đó đang bật |
 
 ## Realtime Broadcast
 

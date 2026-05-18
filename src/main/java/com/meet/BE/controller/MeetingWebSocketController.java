@@ -4,6 +4,7 @@ import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.message.MeetingWsMessage;
 import com.meet.BE.service.user.MeetingOrchestratorService;
 import com.meet.BE.service.user.ParticipantServiceRF;
+import com.meet.BE.service.user.TargetedMuteService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ public class MeetingWebSocketController {
 
     private final MeetingOrchestratorService meetingOrchestratorService;
     private final ParticipantServiceRF participantServiceRF;
+    private final TargetedMuteService targetedMuteService;
 
     @MessageMapping("/meeting/accept")
     public void admit(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
@@ -59,5 +61,15 @@ public class MeetingWebSocketController {
                 msg.getTargetParticipantId(),
                 hostParticipantId,
                 isBan);
+    }
+
+    @MessageMapping("/meeting/mute")
+    public void mute(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
+        Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+        this.targetedMuteService.muteParticipant(
+                msg.getMeetingCode(),
+                msg.getTargetParticipantId(),
+                hostParticipantId,
+                msg.getTrackType());
     }
 }
