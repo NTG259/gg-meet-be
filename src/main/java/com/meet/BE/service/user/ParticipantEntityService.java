@@ -188,10 +188,12 @@ public class ParticipantEntityService {
         if (participantId == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        Meeting meeting = this.meetingRepository.findByMeetingCode(meetingCode)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
-        return this.meetingParticipantRepository.findByMeetingIdAndParticipantId(meeting.getId(), participantId)
+        MeetingParticipant participant = meetingParticipantRepository.findById(participantId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM));
+        if (!participant.getMeeting().getMeetingCode().equals(meetingCode)) {
+            throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
+        }
+        return participant;
     }
 
     public MeetingParticipant getUserInMeeting(Long userId, String meetingCode) {
