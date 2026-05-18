@@ -192,8 +192,9 @@ public class LiveKitService {
         try {
             ParticipantInfo info = roomServiceClient.getParticipant(roomName, identity).execute().body();
             if (info == null) {
-                log.warn("Mute target not found in LiveKit room: room={}, identity={}, trackType={}",
-                        roomName, identity, trackType);
+                List<String> presentIdentities = listParticipantIdentities(roomName);
+                log.warn("Mute target not found in LiveKit room: room={}, identity={}, trackType={}, presentIdentities={}",
+                        roomName, identity, trackType, presentIdentities);
                 throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
             }
             TrackSource targetSource = trackType == TrackType.AUDIO ? TrackSource.MICROPHONE : TrackSource.CAMERA;
@@ -237,6 +238,16 @@ public class LiveKitService {
             }
         } catch (Exception e) {
             log.warn("Failed to force mute non-host participants in room: {}", roomName);
+        }
+    }
+
+    private List<String> listParticipantIdentities(String roomName) {
+        try {
+            List<ParticipantInfo> participants = roomServiceClient.listParticipants(roomName).execute().body();
+            if (participants == null) return List.of();
+            return participants.stream().map(ParticipantInfo::getIdentity).toList();
+        } catch (Exception e) {
+            return List.of();
         }
     }
 
