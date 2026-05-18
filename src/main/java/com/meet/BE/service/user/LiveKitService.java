@@ -70,7 +70,7 @@ public class LiveKitService {
         Role role = participant.getRole() != null ? participant.getRole() : Role.PARTICIPANT;
 
         token.setName(user.getFullName());
-        token.setIdentity("user-" + user.getId().toString());
+        token.setIdentity(user.getId().toString());
         token.addGrants(new VideoGrant[] {
                 new RoomJoin(true),
                 new RoomName(meetingCode),
@@ -98,7 +98,7 @@ public class LiveKitService {
         Role role = Role.PARTICIPANT;
 
         token.setName(guest.getGuestName());
-        token.setIdentity("guest-" + guest.getGuestId());
+        token.setIdentity(guest.getGuestId());
         token.addGrants(new VideoGrant[] {
                 new RoomJoin(true),
                 new RoomName(meetingCode),
