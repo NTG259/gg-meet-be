@@ -152,7 +152,7 @@ public class LiveKitService {
 
     public void updateParticipantMetadata(String roomName, String identity, String metadataJson) {
         try {
-            roomServiceClient.updateParticipant(roomName, identity, metadataJson, null).execute();
+            roomServiceClient.updateParticipant(roomName, identity, null, metadataJson).execute();
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SCREEN_SHARE_OPERATION_FAILED);
         }
@@ -193,7 +193,8 @@ public class LiveKitService {
             ParticipantInfo info = roomServiceClient.getParticipant(roomName, identity).execute().body();
             if (info == null) {
                 List<String> presentIdentities = listParticipantIdentities(roomName);
-                log.warn("Mute target not found in LiveKit room: room={}, identity={}, trackType={}, presentIdentities={}",
+                log.warn(
+                        "Mute target not found in LiveKit room: room={}, identity={}, trackType={}, presentIdentities={}",
                         roomName, identity, trackType, presentIdentities);
                 throw new BusinessException(ErrorCode.USER_NOT_IN_THIS_ROOM);
             }
@@ -215,23 +216,29 @@ public class LiveKitService {
     public void forceMuteAllNonHosts(String roomName) {
         try {
             List<ParticipantInfo> participants = roomServiceClient.listParticipants(roomName).execute().body();
-            if (participants == null) return;
+            if (participants == null)
+                return;
             for (ParticipantInfo participant : participants) {
                 String metadata = participant.getMetadata();
-                if (metadata == null || metadata.isBlank()) continue;
+                if (metadata == null || metadata.isBlank())
+                    continue;
                 try {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> meta = (Map<String, Object>) objectMapper.readValue(metadata, Map.class);
-                    if (Role.HOST.name().equals(meta.get("role"))) continue;
+                    if (Role.HOST.name().equals(meta.get("role")))
+                        continue;
                 } catch (Exception e) {
                     continue;
                 }
                 for (TrackInfo track : participant.getTracksList()) {
                     if (track.getSource() == TrackSource.MICROPHONE && !track.getMuted()) {
                         try {
-                            roomServiceClient.mutePublishedTrack(roomName, participant.getIdentity(), track.getSid(), true).execute();
+                            roomServiceClient
+                                    .mutePublishedTrack(roomName, participant.getIdentity(), track.getSid(), true)
+                                    .execute();
                         } catch (Exception e) {
-                            log.warn("Failed to mute audio track for {} in room {}", participant.getIdentity(), roomName);
+                            log.warn("Failed to mute audio track for {} in room {}", participant.getIdentity(),
+                                    roomName);
                         }
                     }
                 }
@@ -243,8 +250,7 @@ public class LiveKitService {
 
     private List<String> listParticipantIdentities(String roomName) {
         try {
-            retrofit2.Response<List<ParticipantInfo>> resp =
-                    roomServiceClient.listParticipants(roomName).execute();
+            retrofit2.Response<List<ParticipantInfo>> resp = roomServiceClient.listParticipants(roomName).execute();
             if (!resp.isSuccessful()) {
                 log.warn("listParticipants failed: room={}, httpCode={}, errorBody={}",
                         roomName, resp.code(),
@@ -252,7 +258,8 @@ public class LiveKitService {
                 return List.of();
             }
             List<ParticipantInfo> participants = resp.body();
-            if (participants == null) return List.of();
+            if (participants == null)
+                return List.of();
             return participants.stream().map(ParticipantInfo::getIdentity).toList();
         } catch (Exception e) {
             log.warn("listParticipants threw: room={}, error={}", roomName, e.toString());
@@ -263,7 +270,8 @@ public class LiveKitService {
     public List<String> getScreenSharingIdentities(String roomName) {
         try {
             List<ParticipantInfo> participants = roomServiceClient.listParticipants(roomName).execute().body();
-            if (participants == null) return List.of();
+            if (participants == null)
+                return List.of();
             return participants.stream()
                     .filter(p -> p.getTracksList().stream()
                             .anyMatch(t -> t.getSource() == TrackSource.SCREEN_SHARE && !t.getMuted()))
