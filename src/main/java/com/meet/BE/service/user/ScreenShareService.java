@@ -42,7 +42,7 @@ public class ScreenShareService {
         notificationService.sendRoomSettingsChanged(meetingCode, allowParticipantShareScreen, allowParticipantUnmute);
 
         if (!allowParticipantShareScreen) {
-            forceStopAllScreenShares(meetingCode);
+            forceStopAllScreenShares(meetingCode, liveKitService.buildIdentity(host));
         }
     }
 
@@ -95,9 +95,12 @@ public class ScreenShareService {
         notificationService.sendScreenShareStopped(meetingCode, targetParticipantId);
     }
 
-    private void forceStopAllScreenShares(String meetingCode) {
+    private void forceStopAllScreenShares(String meetingCode, String hostIdentity) {
         List<String> sharingIdentities = liveKitService.getScreenSharingIdentities(meetingCode);
         for (String identity : sharingIdentities) {
+            if (identity.equals(hostIdentity)) {
+                continue;
+            }
             try {
                 liveKitService.muteScreenShareTrack(meetingCode, identity);
                 log.info("Force stopped screen share for identity: {} in room: {}", identity, meetingCode);
