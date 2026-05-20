@@ -11,5 +11,7 @@ public class MeetingWsMessage {
     private String targetName;
     private String action;
     private Boolean isBan;
+    private Boolean allowParticipantUnmute;
+    private Boolean allowParticipantShareScreen;
     private Map<String, Object> extra;
 }

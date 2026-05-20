@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -120,19 +119,12 @@ public class NotificationService {
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
     }
 
-    public void sendRoomSettingsChanged(String meetingCode, boolean allowParticipantShareScreen) {
+    public void sendRoomSettingsChanged(String meetingCode, boolean allowParticipantShareScreen, boolean allowParticipantUnmute) {
         MeetingWsMessage msg = new MeetingWsMessage();
         msg.setMeetingCode(meetingCode);
         msg.setAction("ROOM_SETTINGS_CHANGED");
-        msg.setExtra(Map.of("allowParticipantShareScreen", allowParticipantShareScreen));
-        messagingTemplate.convertAndSend(topic(meetingCode), msg);
-    }
-
-    public void sendMuteSettingsChanged(String meetingCode, boolean allowParticipantUnmute) {
-        MeetingWsMessage msg = new MeetingWsMessage();
-        msg.setMeetingCode(meetingCode);
-        msg.setAction("ROOM_SETTINGS_CHANGED");
-        msg.setExtra(Map.of("allowParticipantUnmute", allowParticipantUnmute));
+        msg.setAllowParticipantShareScreen(allowParticipantShareScreen);
+        msg.setAllowParticipantUnmute(allowParticipantUnmute);
         messagingTemplate.convertAndSend(topic(meetingCode), msg);
     }
 

@@ -27,20 +27,32 @@ public class ScreenShareService {
         MeetingParticipant host = participantEntityService.getParticipantInMeeting(hostParticipantId, meetingCode);
         permissionService.assertHostPermission(host);
 
-        Map<String, Object> roomMetadata = new LinkedHashMap<>();
-        roomMetadata.put("allowParticipantShareScreen", allowParticipantShareScreen);
-
+        boolean allowParticipantUnmute;
         try {
+            String currentMetadata = liveKitService.getRoomCurrentMetadata(meetingCode);
+            Map<String, Object> roomMetadata = parseOrEmptyMap(currentMetadata);
+            allowParticipantUnmute = Boolean.TRUE.equals(roomMetadata.getOrDefault("allowParticipantUnmute", true));
+            roomMetadata.put("allowParticipantShareScreen", allowParticipantShareScreen);
             String metadataJson = objectMapper.writeValueAsString(roomMetadata);
             liveKitService.updateRoomMetadata(meetingCode, metadataJson);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SCREEN_SHARE_OPERATION_FAILED);
         }
 
-        notificationService.sendRoomSettingsChanged(meetingCode, allowParticipantShareScreen);
+        notificationService.sendRoomSettingsChanged(meetingCode, allowParticipantShareScreen, allowParticipantUnmute);
 
         if (!allowParticipantShareScreen) {
             forceStopAllScreenShares(meetingCode);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseOrEmptyMap(String json) {
+        if (json == null || json.isBlank()) return new LinkedHashMap<>();
+        try {
+            return (Map<String, Object>) objectMapper.readValue(json, Map.class);
+        } catch (Exception e) {
+            return new LinkedHashMap<>();
         }
     }
 

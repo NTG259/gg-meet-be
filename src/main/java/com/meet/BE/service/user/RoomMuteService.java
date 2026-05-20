@@ -26,20 +26,32 @@ public class RoomMuteService {
         MeetingParticipant host = participantEntityService.getParticipantInMeeting(hostParticipantId, meetingCode);
         permissionService.assertHostPermission(host);
 
-        Map<String, Object> roomMetadata = new LinkedHashMap<>();
-        roomMetadata.put("allowParticipantUnmute", allowParticipantUnmute);
-
+        boolean allowParticipantShareScreen;
         try {
+            String currentMetadata = liveKitService.getRoomCurrentMetadata(meetingCode);
+            Map<String, Object> roomMetadata = parseOrEmptyMap(currentMetadata);
+            allowParticipantShareScreen = Boolean.TRUE.equals(roomMetadata.getOrDefault("allowParticipantShareScreen", true));
+            roomMetadata.put("allowParticipantUnmute", allowParticipantUnmute);
             String metadataJson = objectMapper.writeValueAsString(roomMetadata);
             liveKitService.updateRoomMetadata(meetingCode, metadataJson);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.MUTE_OPERATION_FAILED);
         }
 
-        notificationService.sendMuteSettingsChanged(meetingCode, allowParticipantUnmute);
+        notificationService.sendRoomSettingsChanged(meetingCode, allowParticipantShareScreen, allowParticipantUnmute);
 
         if (!allowParticipantUnmute) {
             liveKitService.forceMuteAllNonHosts(meetingCode);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseOrEmptyMap(String json) {
+        if (json == null || json.isBlank()) return new LinkedHashMap<>();
+        try {
+            return (Map<String, Object>) objectMapper.readValue(json, Map.class);
+        } catch (Exception e) {
+            return new LinkedHashMap<>();
         }
     }
 }

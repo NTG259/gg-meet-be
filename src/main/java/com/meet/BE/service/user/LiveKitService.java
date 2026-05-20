@@ -267,6 +267,18 @@ public class LiveKitService {
         }
     }
 
+    public String getRoomCurrentMetadata(String roomName) {
+        try {
+            List<livekit.LivekitModels.Room> rooms = roomServiceClient.listRooms(List.of(roomName)).execute().body();
+            if (rooms == null || rooms.isEmpty()) return "{}";
+            String meta = rooms.get(0).getMetadata();
+            return (meta == null || meta.isBlank()) ? "{}" : meta;
+        } catch (Exception e) {
+            log.warn("Failed to get room metadata for room: {}", roomName);
+            return "{}";
+        }
+    }
+
     public List<String> getScreenSharingIdentities(String roomName) {
         try {
             List<ParticipantInfo> participants = roomServiceClient.listParticipants(roomName).execute().body();
