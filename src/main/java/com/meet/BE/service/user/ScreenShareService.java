@@ -22,6 +22,7 @@ public class ScreenShareService {
     private final ParticipantEntityService participantEntityService;
     private final ParticipantPermissionService permissionService;
     private final ObjectMapper objectMapper;
+    private final RoomMetadataService roomMetadataService;
 
     public void updateScreenShareSetting(String meetingCode, Long hostParticipantId, boolean allowParticipantShareScreen) {
         MeetingParticipant host = participantEntityService.getParticipantInMeeting(hostParticipantId, meetingCode);
@@ -29,12 +30,10 @@ public class ScreenShareService {
 
         boolean allowParticipantUnmute;
         try {
-            String currentMetadata = liveKitService.getRoomCurrentMetadata(meetingCode);
-            Map<String, Object> roomMetadata = parseOrEmptyMap(currentMetadata);
+            Map<String, Object> roomMetadata = roomMetadataService.updateRoomMetadata(
+                    meetingCode,
+                    metadata -> metadata.put("allowParticipantShareScreen", allowParticipantShareScreen));
             allowParticipantUnmute = Boolean.TRUE.equals(roomMetadata.getOrDefault("allowParticipantUnmute", true));
-            roomMetadata.put("allowParticipantShareScreen", allowParticipantShareScreen);
-            String metadataJson = objectMapper.writeValueAsString(roomMetadata);
-            liveKitService.updateRoomMetadata(meetingCode, metadataJson);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SCREEN_SHARE_OPERATION_FAILED);
         }
@@ -43,16 +42,6 @@ public class ScreenShareService {
 
         if (!allowParticipantShareScreen) {
             forceStopAllScreenShares(meetingCode, liveKitService.buildIdentity(host));
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> parseOrEmptyMap(String json) {
-        if (json == null || json.isBlank()) return new LinkedHashMap<>();
-        try {
-            return (Map<String, Object>) objectMapper.readValue(json, Map.class);
-        } catch (Exception e) {
-            return new LinkedHashMap<>();
         }
     }
 

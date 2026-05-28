@@ -45,6 +45,9 @@ public class MeetingParticipant {
     @Column(name = "guest_name", length = 100)
     private String guestName;
 
+    @Column(name = "guest_secret", length = 100)
+    private String guestSecret;
+
     // ===== ROLE & STATUS =====
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

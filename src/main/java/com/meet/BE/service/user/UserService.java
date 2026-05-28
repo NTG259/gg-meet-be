@@ -82,6 +82,16 @@ public class UserService {
     }
 
     @Transactional
+    public void revokeUserTokens(String email) {
+        User user = this.userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Long currentVersion = user.getAccessTokenVersion() == null ? 0L : user.getAccessTokenVersion();
+        user.setAccessTokenVersion(currentVersion + 1);
+        user.setRefreshToken(null);
+        this.userRepository.save(user);
+    }
+
+    @Transactional
     public ApiResponse<UserResponseDTO> updateCurrentUserAccount(String email, UpdateAccountRequest request) {
         User user = this.userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

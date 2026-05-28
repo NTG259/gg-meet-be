@@ -2,6 +2,8 @@ package com.meet.BE.config;
 
 import com.meet.BE.config.custom.CustomAccessDeniedHandler;
 import com.meet.BE.config.custom.CustomAuthenticationEntryPoint;
+import com.meet.BE.domain.entity.User;
+import com.meet.BE.repository.UserRepository;
 import com.meet.BE.service.user.SecurityService;
 import com.meet.BE.utils.security.CustomUserDetailsService;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
@@ -21,6 +23,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -36,6 +40,7 @@ import javax.crypto.spec.SecretKeySpec;
 @EnableMethodSecurity
 public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
+    private final UserRepository userRepository;
 
     @Value("${jwt.secret}")
     private String jwtKey;
@@ -124,12 +129,40 @@ public class SecurityConfig {
                 getSecretKey()).macAlgorithm(SecurityService.JWT_ALGORITHM).build();
         return token -> {
             try {
-                return jwtDecoder.decode(token);
+                Jwt jwt = jwtDecoder.decode(token);
+                validateAccessToken(jwt);
+                return jwt;
             } catch (Exception e) {
                 System.out.println(">>> JWT error: " + e.getMessage());
                 throw e;
             }
         };
+    }
+
+    private void validateAccessToken(Jwt jwt) {
+        Object tokenType = jwt.getClaim("tokenType");
+        if (!"access".equals(tokenType)) {
+            throw new BadJwtException("Invalid access token type");
+        }
+
+        Object tokenVersionObj = jwt.getClaim("tokenVersion");
+        if (jwt.getSubject() == null || tokenVersionObj == null) {
+            throw new BadJwtException("Invalid access token claims");
+        }
+
+        long tokenVersion;
+        try {
+            tokenVersion = Long.parseLong(tokenVersionObj.toString());
+        } catch (NumberFormatException exception) {
+            throw new BadJwtException("Invalid access token version");
+        }
+
+        User user = userRepository.findByEmail(jwt.getSubject())
+                .orElseThrow(() -> new BadJwtException("Access token user not found"));
+        long currentVersion = user.getAccessTokenVersion() == null ? 0L : user.getAccessTokenVersion();
+        if (tokenVersion != currentVersion) {
+            throw new BadJwtException("Access token has been revoked");
+        }
     }
 
     // Convert roles(USER, ADMIN) => roles(ROLE_USER, ROLE_ADMIN)

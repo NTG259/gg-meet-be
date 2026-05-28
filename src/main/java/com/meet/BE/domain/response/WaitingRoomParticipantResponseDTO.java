@@ -6,8 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,5 +15,5 @@ public class WaitingRoomParticipantResponseDTO {
     private String name;
     private String email;
     private ParticipantStatus participantStatus;
-    private LocalDateTime requestedAt;
+    private String requestedAt;
 }

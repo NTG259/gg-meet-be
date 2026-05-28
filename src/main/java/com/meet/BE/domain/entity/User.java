@@ -49,6 +49,9 @@ public class User {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String refreshToken;
 
+    @Column(nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    private Long accessTokenVersion = 0L;
+
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT false")
     private Boolean isDeleted = false;
 

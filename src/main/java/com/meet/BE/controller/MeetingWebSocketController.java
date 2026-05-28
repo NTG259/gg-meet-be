@@ -3,7 +3,8 @@ package com.meet.BE.controller;
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.message.MeetingWsMessage;
 import com.meet.BE.service.user.MeetingOrchestratorService;
-import com.meet.BE.service.user.ParticipantServiceRF;
+import com.meet.BE.utils.errors.BusinessException;
+import com.meet.BE.utils.errors.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Controller;
 public class MeetingWebSocketController {
 
     private final MeetingOrchestratorService meetingOrchestratorService;
-    private final ParticipantServiceRF participantServiceRF;
 
     @MessageMapping("/meeting/accept")
     public void admit(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
@@ -39,15 +39,36 @@ public class MeetingWebSocketController {
 
     @MessageMapping("/meeting/cancel-join")
     public void cancelJoin(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
-        participantServiceRF.cancelWaiting(msg.getTargetParticipantId(), msg.getMeetingCode());
+        Long callerParticipantId = getParticipantIdFromSession(headerAccessor);
+        assertSameMeeting(headerAccessor, msg.getMeetingCode());
+
+        if (!callerParticipantId.equals(msg.getTargetParticipantId())) {
+            throw new BusinessException(ErrorCode.NOT_PERMIT);
+        }
+
+        meetingOrchestratorService.cancelJoin(callerParticipantId, msg.getMeetingCode());
     }
 
 
     private Long getParticipantIdFromSession(SimpMessageHeaderAccessor headerAccessor) {
         if (headerAccessor.getSessionAttributes() == null) {
-            return null;
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        return (Long) headerAccessor.getSessionAttributes().get("participantId");
+        Object participantId = headerAccessor.getSessionAttributes().get("participantId");
+        if (!(participantId instanceof Long)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return (Long) participantId;
+    }
+
+    private void assertSameMeeting(SimpMessageHeaderAccessor headerAccessor, String meetingCode) {
+        if (headerAccessor.getSessionAttributes() == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Object sessionMeetingCode = headerAccessor.getSessionAttributes().get("meetingCode");
+        if (!meetingCode.equals(sessionMeetingCode)) {
+            throw new BusinessException(ErrorCode.NOT_PERMIT);
+        }
     }
 
     @MessageMapping("/meeting/kickout")

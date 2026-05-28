@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +50,8 @@ public class ParticipantServiceRF {
 
     @Transactional
     public MeetingParticipant handleGuestJoin(Meeting meeting, GuestJoinRequest guestRequest) {
+        validateGuestRequest(guestRequest);
+
         log.info(
                 "Handling guest join: meetingId={}, meetingCode={}, guestId={}, guestName={}",
                 meeting.getId(),
@@ -61,6 +64,9 @@ public class ParticipantServiceRF {
                 .findExistingGuestParticipant(meeting, guestRequest);
         // Kiểm tra người này đã vào phòng lần nào chưa
         if (existingOpt.isPresent()) {
+            if (!isGuestSecretValid(existingOpt.get(), guestRequest)) {
+                throw new BusinessException(ErrorCode.NOT_PERMIT);
+            }
             log.info(
                     "Existing guest participant found: participantId={}, status={}",
                     existingOpt.get().getParticipantId(),
@@ -96,6 +102,7 @@ public class ParticipantServiceRF {
             } else {
                 participant.setGuestId(guest.getGuestId());
                 participant.setGuestName(guest.getGuestName());
+                participant.setGuestSecret(UUID.randomUUID().toString());
             }
             log.info(
                     "Invited participant matched: participantId={}, previousStatus={}",
@@ -165,8 +172,7 @@ public class ParticipantServiceRF {
         MeetingParticipant participant = participantEntityService
                 .validateCancelableWaiting(participantId, meetingCode);
         if (participant == null) return null;
-        participantEntityService.removeParticipant(participantId);
-        return participant;
+        return participantEntityService.updateParticipantStatus(participant, ParticipantStatus.LEFT);
     }
 
     @Transactional
@@ -179,5 +185,21 @@ public class ParticipantServiceRF {
         MeetingParticipant participant = participantEntityService.validateParticipantInMeeting(targetParticipantId, meetingCode);
         ParticipantStatus status = isBan ? ParticipantStatus.BLOCK : ParticipantStatus.LEFT;
         return participantEntityService.updateParticipantStatus(participant, status);
+    }
+
+    private void validateGuestRequest(GuestJoinRequest guestRequest) {
+        if (guestRequest == null
+                || guestRequest.getGuestId() == null
+                || guestRequest.getGuestId().isBlank()
+                || guestRequest.getGuestName() == null
+                || guestRequest.getGuestName().isBlank()) {
+            throw new BusinessException(ErrorCode.DATA_NOT_ENOUGH);
+        }
+    }
+
+    private boolean isGuestSecretValid(MeetingParticipant participant, GuestJoinRequest guestRequest) {
+        return participant.getGuestSecret() != null
+                && guestRequest.getGuestSecret() != null
+                && participant.getGuestSecret().equals(guestRequest.getGuestSecret());
     }
 }

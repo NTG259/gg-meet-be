@@ -17,7 +17,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,8 +48,8 @@ class MeetingControllerTest {
         PagedResponse<UpcomingMeetingItemResponse> serviceResponse = new PagedResponse<>(
                 List.of(new UpcomingMeetingItemResponse(
                         "Planning",
-                        LocalDateTime.of(2026, 4, 21, 14, 0),
-                        LocalDateTime.of(2026, 4, 21, 15, 0),
+                        "2026-04-21T14:00",
+                        "2026-04-21T15:00",
                         "Host Name",
                         "ROOM-1",
                         com.meet.BE.domain.enums.MeetingStatus.SCHEDULED

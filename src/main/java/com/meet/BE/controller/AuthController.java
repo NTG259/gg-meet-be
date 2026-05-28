@@ -164,7 +164,7 @@ public class AuthController {
         String email = SecurityUtils.getCurrentUserLogin()
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
 
-        userService.updateUserToken(null, email);
+        userService.revokeUserTokens(email);
 
         ResponseCookie deleteRefreshTokenCookie = ResponseCookie
                 .from("rf_token", "")

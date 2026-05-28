@@ -9,6 +9,7 @@ import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import io.livekit.server.*;
 import livekit.LivekitModels.ParticipantInfo;
+import livekit.LivekitModels.Room;
 import livekit.LivekitModels.TrackInfo;
 import livekit.LivekitModels.TrackSource;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -37,14 +37,19 @@ public class LiveKitService {
     private final RoomServiceClient roomServiceClient;
     private final ObjectMapper objectMapper;
 
-    private void createLiveKitRoom(String meetingCode, Integer emptyTimeout, Integer maxParticipants)
+    private String createLiveKitRoom(String meetingCode, Integer emptyTimeout, Integer maxParticipants)
             throws IOException {
-        roomServiceClient.createRoom(
+        retrofit2.Response<Room> response = roomServiceClient.createRoom(
                 meetingCode,
                 emptyTimeout,
                 maxParticipants,
                 "",
                 "").execute();
+        if (!response.isSuccessful()) {
+            throw new IOException("LiveKit room cannot be created");
+        }
+        Room room = response.body();
+        return room != null && !room.getSid().isBlank() ? room.getSid() : null;
     }
 
     public void deleteRoom(String roomName) {
@@ -55,10 +60,8 @@ public class LiveKitService {
         }
     }
 
-    public void createInstantRoom(CreateInstantMeetingRequest request) throws IOException {
-        String meetingCode = UUID.randomUUID().toString().substring(0, 10);
-
-        this.createLiveKitRoom(
+    public String createInstantRoom(String meetingCode, CreateInstantMeetingRequest request) throws IOException {
+        return this.createLiveKitRoom(
                 meetingCode,
                 request.getEmptyTimeout(),
                 request.getMaxParticipants());
@@ -142,6 +145,18 @@ public class LiveKitService {
         }
     }
 
+    public void removeParticipantIfPresent(String roomName, String identity) {
+        if (identity == null || identity.isBlank()) {
+            return;
+        }
+
+        try {
+            roomServiceClient.removeParticipant(roomName, identity).execute();
+        } catch (Exception e) {
+            log.warn("Participant was not removed from LiveKit during leave: room={}, identity={}", roomName, identity);
+        }
+    }
+
     public void updateRoomMetadata(String roomName, String metadataJson) {
         try {
             roomServiceClient.updateRoomMetadata(roomName, metadataJson).execute();
@@ -220,14 +235,19 @@ public class LiveKitService {
                 return;
             for (ParticipantInfo participant : participants) {
                 String metadata = participant.getMetadata();
-                if (metadata == null || metadata.isBlank())
-                    continue;
+                boolean hostParticipant = false;
                 try {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> meta = (Map<String, Object>) objectMapper.readValue(metadata, Map.class);
-                    if (Role.HOST.name().equals(meta.get("role")))
-                        continue;
+                    if (metadata != null && !metadata.isBlank()) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> meta = (Map<String, Object>) objectMapper.readValue(metadata, Map.class);
+                        hostParticipant = Role.HOST.name().equals(meta.get("role"));
+                    }
                 } catch (Exception e) {
+                    log.warn("Cannot parse LiveKit participant metadata, treating as participant: room={}, identity={}",
+                            roomName,
+                            participant.getIdentity());
+                }
+                if (hostParticipant) {
                     continue;
                 }
                 for (TrackInfo track : participant.getTracksList()) {

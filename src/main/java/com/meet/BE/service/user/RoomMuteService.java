@@ -6,9 +6,7 @@ import com.meet.BE.utils.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.ObjectMapper;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -20,7 +18,7 @@ public class RoomMuteService {
     private final NotificationService notificationService;
     private final ParticipantEntityService participantEntityService;
     private final ParticipantPermissionService permissionService;
-    private final ObjectMapper objectMapper;
+    private final RoomMetadataService roomMetadataService;
 
     public void updateMuteSetting(String meetingCode, Long hostParticipantId, boolean allowParticipantUnmute) {
         MeetingParticipant host = participantEntityService.getParticipantInMeeting(hostParticipantId, meetingCode);
@@ -28,12 +26,10 @@ public class RoomMuteService {
 
         boolean allowParticipantShareScreen;
         try {
-            String currentMetadata = liveKitService.getRoomCurrentMetadata(meetingCode);
-            Map<String, Object> roomMetadata = parseOrEmptyMap(currentMetadata);
+            Map<String, Object> roomMetadata = roomMetadataService.updateRoomMetadata(
+                    meetingCode,
+                    metadata -> metadata.put("allowParticipantUnmute", allowParticipantUnmute));
             allowParticipantShareScreen = Boolean.TRUE.equals(roomMetadata.getOrDefault("allowParticipantShareScreen", true));
-            roomMetadata.put("allowParticipantUnmute", allowParticipantUnmute);
-            String metadataJson = objectMapper.writeValueAsString(roomMetadata);
-            liveKitService.updateRoomMetadata(meetingCode, metadataJson);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.MUTE_OPERATION_FAILED);
         }
@@ -42,16 +38,6 @@ public class RoomMuteService {
 
         if (!allowParticipantUnmute) {
             liveKitService.forceMuteAllNonHosts(meetingCode);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> parseOrEmptyMap(String json) {
-        if (json == null || json.isBlank()) return new LinkedHashMap<>();
-        try {
-            return (Map<String, Object>) objectMapper.readValue(json, Map.class);
-        } catch (Exception e) {
-            return new LinkedHashMap<>();
         }
     }
 }

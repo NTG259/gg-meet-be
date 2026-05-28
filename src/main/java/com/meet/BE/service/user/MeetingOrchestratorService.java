@@ -19,6 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,9 +46,10 @@ public class MeetingOrchestratorService {
     public MeetingResponseDTO createInstantMeeting(User host, String title) {
         // Tạo phòng họp nhanh
         String meetingCode = UUID.randomUUID().toString().substring(0, 5);
+        String roomSid;
         try {
             CreateInstantMeetingRequest instantMeeting = new CreateInstantMeetingRequest(title);
-            liveKitService.createInstantRoom(instantMeeting);
+            roomSid = liveKitService.createInstantRoom(meetingCode, instantMeeting);
         } catch (Exception ex) {
             throw new BusinessException(ErrorCode.ROOM_CANNOT_BE_CREATED);
         }
@@ -53,7 +57,7 @@ public class MeetingOrchestratorService {
 
         // Lưu thông tin vào DB
         Meeting meeting = meetingEntityService
-                .createInstantMeetingEntity(host, meetingCode, title);
+                .createInstantMeetingEntity(host, meetingCode, title, roomSid);
         MeetingParticipant hostParticipant =
                 meetingEntityService.createHostParticipant(meeting, host);
 
@@ -84,6 +88,7 @@ public class MeetingOrchestratorService {
 
         MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
         response.setParticipantStatus(participant.getParticipantStatus());
+        response.setGuestSecret(participant.getGuestSecret());
 
 
         String meetingToken = securityService.generateMeetingToken(
@@ -213,12 +218,18 @@ public class MeetingOrchestratorService {
         MeetingParticipant participant = this.participantEntityService.getParticipantInMeeting(participantId, meetingCode);
 
         this.participantEntityService.updateParticipantStatus(participant, ParticipantStatus.LEFT);
+        this.liveKitService.removeParticipantIfPresent(meetingCode, this.liveKitService.buildIdentity(participant));
 
         notificationService.sendParticipantLeft(meetingCode, participantId);
     }
 
     @Transactional
     public MeetingResponseDTO createScheduleMeeting(User host, ScheduleMeetingRequest request) {
+        ZoneId scheduleZone = resolveScheduleZone(request.getTimeZone());
+        LocalDateTime scheduledStart = LocalDateTime.of(request.getMeetingDate(), request.getMeetingTime());
+        if (scheduledStart.atZone(scheduleZone).toInstant().isBefore(Instant.now())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
 
         Meeting scheduleMeeting = this.meetingEntityService.createScheduleMeetingEntity(host, request);
         this.participantEntityService.ensureHostParticipant(scheduleMeeting, host);
@@ -237,7 +248,7 @@ public class MeetingOrchestratorService {
         this.scheduleService.pushToSchedule(
                 scheduleMeeting.getId(),
                 scheduleMeeting.getStartTime()
-                        .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                        .atZone(scheduleZone)
                         .toEpochSecond());
 
         this.participantEntityService.saveInvitedUser(scheduleMeeting, invitedEmails);
@@ -255,6 +266,14 @@ public class MeetingOrchestratorService {
         MeetingResponseDTO response = MeetingConvert.ToResponse(scheduleMeeting, null);
         response.setParticipantStatus(ParticipantStatus.INVITED);
         return response;
+    }
+
+    private ZoneId resolveScheduleZone(String timeZone) {
+        try {
+            return ZoneId.of(timeZone);
+        } catch (DateTimeException | NullPointerException exception) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
     }
 
     @Transactional
@@ -298,6 +317,9 @@ public class MeetingOrchestratorService {
 
         MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, liveKitToken);
         response.setParticipantStatus(participant.getParticipantStatus());
+        if (participant.getUser() == null) {
+            response.setGuestSecret(participant.getGuestSecret());
+        }
         return response;
     }
 
@@ -314,7 +336,7 @@ public class MeetingOrchestratorService {
                 .name(participantName)
                 .email(participant.getUser() != null ? participant.getUser().getEmail() : participant.getEmail())
                 .participantStatus(participant.getParticipantStatus())
-                .requestedAt(participant.getCreatedAt())
+                .requestedAt(participant.getCreatedAt() == null ? null : participant.getCreatedAt().toString())
                 .build();
     }
 

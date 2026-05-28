@@ -1,6 +1,7 @@
 package com.meet.BE.controller;
 
 import com.meet.BE.domain.ApiResponse;
+import com.meet.BE.domain.dto.MeetingTokenPrincipal;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.request.CancelJoinRequest;
 import com.meet.BE.domain.request.GuestJoinRequest;
@@ -10,6 +11,7 @@ import com.meet.BE.domain.request.UpdateMeetingSettingsRequest;
 import com.meet.BE.domain.response.MeetingResponseDTO;
 import com.meet.BE.domain.response.PagedResponse;
 import com.meet.BE.domain.response.UpcomingMeetingItemResponse;
+import com.meet.BE.domain.response.VerifyMeetingResponseDTO;
 import com.meet.BE.domain.response.WaitingRoomParticipantResponseDTO;
 import com.meet.BE.service.user.MeetingEntityService;
 import com.meet.BE.service.user.MeetingOrchestratorService;
@@ -114,7 +116,7 @@ public class MeetingController {
         public ResponseEntity<ApiResponse<List<WaitingRoomParticipantResponseDTO>>> getWaitingRoomRequests(
                         @PathVariable("meetingCode") String meetingCode,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 List<WaitingRoomParticipantResponseDTO> response = this.meetingOrchestratorService
                                 .getWaitingParticipants(meetingCode, participantId);
 
@@ -127,7 +129,7 @@ public class MeetingController {
         public ResponseEntity<ApiResponse<MeetingResponseDTO>> getJoinRequestStatus(
                         @PathVariable("meetingCode") String meetingCode,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 MeetingResponseDTO response = this.meetingOrchestratorService.getJoinRequestStatus(meetingCode,
                                 participantId);
 
@@ -140,7 +142,7 @@ public class MeetingController {
                         @PathVariable("meetingCode") String meetingCode,
                         @RequestBody(required = false) CancelJoinRequest request) {
                 String meetingToken = request != null ? request.getMeetingToken() : null;
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 this.meetingOrchestratorService.cancelJoin(participantId, meetingCode);
 
                 return ResponseEntity.ok(
@@ -162,20 +164,25 @@ public class MeetingController {
         @DeleteMapping("/leave")
         public ResponseEntity<ApiResponse<Void>> leaveMeeting(
                         @RequestParam(value = "participantId") Long participantId,
-                        @RequestParam(value = "meetingCode") String meetingCode) throws Exception {
+                        @RequestParam(value = "meetingCode") String meetingCode,
+                        @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) throws Exception {
+                Long callerParticipantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
+                if (!callerParticipantId.equals(participantId)) {
+                        throw new BusinessException(ErrorCode.NOT_PERMIT);
+                }
                 meetingOrchestratorService.leaveMeeting(participantId, meetingCode);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(null, "Leave request success", null, HttpStatus.OK.value()));
         }
 
         @PostMapping("/verify")
-        public ResponseEntity<ApiResponse<String>> checkValidMeetingCode(
+        public ResponseEntity<ApiResponse<VerifyMeetingResponseDTO>> checkValidMeetingCode(
                         @RequestParam("meetingCode") String meetingCode) {
-                String verifiedMeetingCode = meetingEntityService.validateMeetingBeforeJoin(meetingCode)
-                                .getMeetingCode();
+                VerifyMeetingResponseDTO response = VerifyMeetingResponseDTO.from(
+                                meetingEntityService.validateMeetingBeforeJoin(meetingCode));
                 return ResponseEntity.ok().body(
                                 new ApiResponse<>(
-                                                verifiedMeetingCode,
+                                                response,
                                                 "Meeting is active",
                                                 null,
                                                 HttpStatus.OK.value()));
@@ -201,7 +208,7 @@ public class MeetingController {
                         @PathVariable("meetingCode") String meetingCode,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken,
                         @RequestBody UpdateMeetingSettingsRequest request) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 if (request.getAllowParticipantShareScreen() != null) {
                         screenShareService.updateScreenShareSetting(meetingCode, participantId,
                                         request.getAllowParticipantShareScreen());
@@ -218,7 +225,7 @@ public class MeetingController {
         public ResponseEntity<ApiResponse<Void>> requestScreenShare(
                         @PathVariable("meetingCode") String meetingCode,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 screenShareService.requestScreenShare(meetingCode, participantId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(null, "Screen share request sent", null, HttpStatus.OK.value()));
@@ -229,7 +236,7 @@ public class MeetingController {
                         @PathVariable("meetingCode") String meetingCode,
                         @PathVariable("requesterId") Long requesterId,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 screenShareService.approveScreenShare(meetingCode, requesterId, participantId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(null, "Screen share approved", null, HttpStatus.OK.value()));
@@ -240,7 +247,7 @@ public class MeetingController {
                         @PathVariable("meetingCode") String meetingCode,
                         @PathVariable("requesterId") Long requesterId,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 screenShareService.rejectScreenShare(meetingCode, requesterId, participantId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(null, "Screen share rejected", null, HttpStatus.OK.value()));
@@ -251,7 +258,7 @@ public class MeetingController {
                         @PathVariable("meetingCode") String meetingCode,
                         @PathVariable("targetId") Long targetId,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 screenShareService.forceStopScreenShare(meetingCode, targetId, participantId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(null, "Screen share stopped", null, HttpStatus.OK.value()));
@@ -263,19 +270,25 @@ public class MeetingController {
                         @PathVariable("targetId") Long targetId,
                         @RequestHeader(value = "Meeting-Token", required = false) String meetingToken,
                         @Valid @RequestBody MuteParticipantRequest request) {
-                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken);
+                Long participantId = resolveParticipantIdFromMeetingToken(meetingToken, meetingCode);
                 targetedMuteService.muteParticipant(meetingCode, targetId, participantId, request.getTrackType());
                 return ResponseEntity.ok(
                                 new ApiResponse<>(null, "Participant track muted successfully", null, HttpStatus.OK.value()));
         }
 
-        private Long resolveParticipantIdFromMeetingToken(String meetingToken) {
+        private Long resolveParticipantIdFromMeetingToken(String meetingToken, String expectedMeetingCode) {
                 if (meetingToken == null || meetingToken.isBlank()) {
                         throw new BusinessException(ErrorCode.UNAUTHORIZED);
                 }
 
                 try {
-                        return this.securityService.getParticipantIdFromToken(meetingToken);
+                        MeetingTokenPrincipal principal = this.securityService.parseMeetingToken(meetingToken);
+                        if (!expectedMeetingCode.equals(principal.meetingCode())) {
+                                throw new BusinessException(ErrorCode.NOT_PERMIT);
+                        }
+                        return principal.participantId();
+                } catch (BusinessException exception) {
+                        throw exception;
                 } catch (Exception exception) {
                         throw new BusinessException(ErrorCode.UNAUTHORIZED);
                 }
