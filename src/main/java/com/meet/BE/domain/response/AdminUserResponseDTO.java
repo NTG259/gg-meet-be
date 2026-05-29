@@ -18,5 +18,6 @@ public class AdminUserResponseDTO {
     private String role;
     private String status;
     private String avatar;
+    private Long meetingCount;
     private LocalDateTime createdAt;
 }

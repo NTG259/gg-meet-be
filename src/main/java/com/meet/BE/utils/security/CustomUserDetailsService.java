@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Component;
 import com.meet.BE.domain.entity.User;
-import java.util.List;
 import java.util.Optional;
 
 @Component("userDetailService")

@@ -23,8 +23,10 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<PagedResponse<AdminUserResponseDTO>>> getUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(adminUserService.getUsers(page, size, search));
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(adminUserService.getUsers(page, size, search, role, status));
     }
 
     @GetMapping("/{userId}")

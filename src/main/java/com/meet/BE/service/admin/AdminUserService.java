@@ -6,6 +6,7 @@ import com.meet.BE.domain.request.AdminCreateUserRequest;
 import com.meet.BE.domain.request.AdminUpdateUserRequest;
 import com.meet.BE.domain.response.AdminUserResponseDTO;
 import com.meet.BE.domain.response.PagedResponse;
+import com.meet.BE.repository.MeetingRepository;
 import com.meet.BE.repository.UserRepository;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
@@ -19,26 +20,35 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AdminUserService {
 
     private final UserRepository userRepository;
+    private final MeetingRepository meetingRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public ApiResponse<PagedResponse<AdminUserResponseDTO>> getUsers(int page, int size, String search) {
+    public ApiResponse<PagedResponse<AdminUserResponseDTO>> getUsers(
+            int page,
+            int size,
+            String search,
+            String role,
+            String status
+    ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<User> userPage;
+        String normalizedSearch = normalizeSearch(search);
+        String normalizedRole = parseRole(role);
+        Boolean enabled = parseStatus(status);
 
-        if (search == null || search.isBlank()) {
-            userPage = userRepository.findAllByIsDeletedFalse(pageable);
-        } else {
-            userPage = userRepository.searchUsers(search.trim(), pageable);
-        }
+        Page<User> userPage = userRepository.findForAdmin(normalizedSearch, normalizedRole, enabled, pageable);
+        Map<Long, Long> meetingCounts = getHostMeetingCounts(userPage.getContent());
 
         List<AdminUserResponseDTO> content = userPage.getContent().stream()
-                .map(this::toAdminResponseDTO)
+                .map(user -> toAdminResponseDTO(user, meetingCounts.getOrDefault(user.getId(), 0L)))
                 .toList();
 
         PagedResponse<AdminUserResponseDTO> pagedResponse = new PagedResponse<>(
@@ -58,7 +68,12 @@ public class AdminUserService {
                 .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        return new ApiResponse<>(toAdminResponseDTO(user), "User details fetched", null, HttpStatus.OK.value());
+        return new ApiResponse<>(
+                toAdminResponseDTO(user, meetingRepository.countByHostId(user.getId())),
+                "User details fetched",
+                null,
+                HttpStatus.OK.value()
+        );
     }
 
     @Transactional
@@ -76,7 +91,7 @@ public class AdminUserService {
         user.setIsDeleted(false);
 
         User saved = userRepository.save(user);
-        return new ApiResponse<>(toAdminResponseDTO(saved), "User created successfully", null, HttpStatus.CREATED.value());
+        return new ApiResponse<>(toAdminResponseDTO(saved, 0L), "User created successfully", null, HttpStatus.CREATED.value());
     }
 
     @Transactional
@@ -100,7 +115,12 @@ public class AdminUserService {
         }
 
         User updated = userRepository.save(user);
-        return new ApiResponse<>(toAdminResponseDTO(updated), "User updated successfully", null, HttpStatus.OK.value());
+        return new ApiResponse<>(
+                toAdminResponseDTO(updated, meetingRepository.countByHostId(updated.getId())),
+                "User updated successfully",
+                null,
+                HttpStatus.OK.value()
+        );
     }
 
     @Transactional
@@ -116,7 +136,56 @@ public class AdminUserService {
         return new ApiResponse<>(null, "User deleted (deactivated) successfully", null, HttpStatus.OK.value());
     }
 
-    private AdminUserResponseDTO toAdminResponseDTO(User user) {
+    private String normalizeSearch(String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+        return search.trim();
+    }
+
+    private String parseRole(String role) {
+        if (role == null || role.isBlank()) {
+            return null;
+        }
+
+        String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
+        if (!"USER".equals(normalizedRole) && !"ADMIN".equals(normalizedRole)) {
+            throw new BusinessException(ErrorCode.INVALID_ROLE);
+        }
+        return normalizedRole;
+    }
+
+    private Boolean parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+
+        return switch (status.trim().toUpperCase(Locale.ROOT)) {
+            case "ACTIVE" -> true;
+            case "INACTIVE" -> false;
+            default -> throw new BusinessException(ErrorCode.INVALID_STATUS);
+        };
+    }
+
+    private Map<Long, Long> getHostMeetingCounts(List<User> users) {
+        List<Long> userIds = users.stream()
+                .map(User::getId)
+                .toList();
+
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return meetingRepository.countMeetingsByHostIds(userIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        MeetingRepository.HostMeetingCount::getHostId,
+                        MeetingRepository.HostMeetingCount::getMeetingCount,
+                        Long::sum
+                ));
+    }
+
+    private AdminUserResponseDTO toAdminResponseDTO(User user, Long meetingCount) {
         AdminUserResponseDTO dto = new AdminUserResponseDTO();
         dto.setId(user.getId());
         dto.setEmail(user.getEmail());
@@ -124,6 +193,7 @@ public class AdminUserService {
         dto.setRole(user.getRole());
         dto.setStatus(Boolean.TRUE.equals(user.getEnabled()) ? "ACTIVE" : "INACTIVE");
         dto.setAvatar(user.getAvatar());
+        dto.setMeetingCount(meetingCount);
         dto.setCreatedAt(user.getCreatedAt());
         return dto;
     }

@@ -39,6 +39,7 @@ public enum ErrorCode {
     DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "Data not found"),
 
     INVALID_STATUS(HttpStatus.BAD_REQUEST, "Invalid status"),
+    INVALID_ROLE(HttpStatus.BAD_REQUEST, "Invalid role"),
     MEETING_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "Meeting has already ended"),
 
     // SCREEN SHARE

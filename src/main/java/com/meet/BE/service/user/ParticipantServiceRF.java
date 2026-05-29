@@ -4,7 +4,6 @@ import com.meet.BE.domain.entity.Meeting;
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.enums.ParticipantStatus;
-import com.meet.BE.domain.enums.Role;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;

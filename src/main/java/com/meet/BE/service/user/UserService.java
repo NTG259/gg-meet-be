@@ -26,7 +26,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenRepository tokenRepository;
-    private final EmailService emailService;
 
     @Transactional
     public ApiResponse<UserResponseDTO> createUser(CreateUserDTO userDto) {

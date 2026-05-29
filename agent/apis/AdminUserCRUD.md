@@ -27,6 +27,8 @@ Authorization: Bearer <admin_token>
 | `page` | Không | `0` | Số trang |
 | `size` | Không | `10` | Số record mỗi trang |
 | `search` | Không | — | Tìm kiếm theo tên hoặc email |
+| `role` | Không | — | Lọc role: `USER` hoặc `ADMIN` |
+| `status` | Không | — | Lọc trạng thái: `ACTIVE` hoặc `INACTIVE` |
 
 ### Response
 
@@ -42,6 +44,7 @@ Authorization: Bearer <admin_token>
                 "role": "USER",
                 "status": "ACTIVE",
                 "avatar": "https://...",
+                "meetingCount": 12,
                 "createdAt": "2024-01-01T10:00:00"
             }
         ],
@@ -56,6 +59,9 @@ Authorization: Bearer <admin_token>
     "status": 200
 }
 ```
+
+> `meetingCount`: số cuộc họp user là host.  
+> `role`/`status` sai giá trị trả `400 Bad Request`.
 
 ---
 
@@ -83,6 +89,7 @@ Authorization: Bearer <admin_token>
         "role": "USER",
         "status": "ACTIVE",
         "avatar": "https://...",
+        "meetingCount": 12,
         "createdAt": "2024-01-01T10:00:00"
     },
     "message": "User details fetched",
@@ -137,6 +144,7 @@ Content-Type: application/json
         "role": "USER",
         "status": "ACTIVE",
         "avatar": null,
+        "meetingCount": 0,
         "createdAt": "2024-06-01T09:00:00"
     },
     "message": "User created successfully",
@@ -193,6 +201,7 @@ Content-Type: application/json
         "role": "ADMIN",
         "status": "INACTIVE",
         "avatar": null,
+        "meetingCount": 12,
         "createdAt": "2024-06-01T09:00:00"
     },
     "message": "User updated successfully",
@@ -249,8 +258,9 @@ Authorization: Bearer <admin_token>
 | File | Thay đổi |
 |------|----------|
 | `domain/entity/User.java` | Thêm field `isDeleted` (Boolean, default `false`) |
-| `repository/UserRepository.java` | Thêm `findAllByIsDeletedFalse` và `searchUsers` |
-| `domain/response/AdminUserResponseDTO.java` | DTO response mới |
+| `repository/UserRepository.java` | Thêm query list admin hỗ trợ `search`, `role`, `status` |
+| `repository/MeetingRepository.java` | Thêm query count meeting theo host để trả `meetingCount` |
+| `domain/response/AdminUserResponseDTO.java` | DTO response, có `meetingCount` |
 | `domain/request/AdminCreateUserRequest.java` | Request tạo user |
 | `domain/request/AdminUpdateUserRequest.java` | Request cập nhật user |
 | `service/admin/AdminUserService.java` | Service xử lý CRUD |
