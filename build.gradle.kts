@@ -40,6 +40,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
 	implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
+	// OpenAPI spec at /v3/api-docs (+ /swagger-ui.html) — the API contract for
+	// the desktop/mobile clients (docs/desktop-spa-flutter-roadmap at repo root).
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 	runtimeOnly ("com.mysql:mysql-connector-j")
 	runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
 	testImplementation ("org.springframework.boot:spring-boot-starter-test")

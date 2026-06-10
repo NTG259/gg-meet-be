@@ -1,5 +1,6 @@
 package com.meet.BE.domain.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.AllArgsConstructor;
@@ -12,6 +13,13 @@ import lombok.Setter;
 public class LoginResponse {
     @JsonProperty("access_token")
     private String accessToken;
+
+    // Only populated for non-browser clients (X-Client: desktop/mobile), which
+    // cannot use the HTTP-only cookie. Stays out of the web response body.
+    @JsonProperty("refresh_token")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String refreshToken;
+
     private UserLogin user;
 
     @Getter
