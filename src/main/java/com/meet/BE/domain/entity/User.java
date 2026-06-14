@@ -55,6 +55,9 @@ public class User {
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT false")
     private Boolean isDeleted = false;
 
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT false")
+    private Boolean isBanned = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

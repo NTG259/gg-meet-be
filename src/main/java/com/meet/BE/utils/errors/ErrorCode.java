@@ -13,6 +13,7 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "Token has expired"),
     USER_DISABLED(HttpStatus.BAD_REQUEST, "Account is disabled"),
     USER_LOCKED(HttpStatus.BAD_REQUEST, "Account is locked"),
+    USER_BANNED(HttpStatus.FORBIDDEN, "Account has been banned"),
 
     // ROOM
     ROOM_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Room already exists"),

@@ -163,6 +163,9 @@ public class SecurityConfig {
         if (tokenVersion != currentVersion) {
             throw new BadJwtException("Access token has been revoked");
         }
+        if (Boolean.TRUE.equals(user.getIsBanned())) {
+            throw new BadJwtException("Account has been banned");
+        }
     }
 
     // Convert roles(USER, ADMIN) => roles(ROLE_USER, ROLE_ADMIN)

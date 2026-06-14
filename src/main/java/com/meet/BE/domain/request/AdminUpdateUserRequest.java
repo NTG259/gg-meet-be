@@ -10,7 +10,5 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AdminUpdateUserRequest {
-    private String fullName;
     private String role;
-    private String status;
 }

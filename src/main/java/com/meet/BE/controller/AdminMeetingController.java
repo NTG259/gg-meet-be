@@ -7,7 +7,9 @@ import com.meet.BE.service.admin.AdminMeetingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,5 +33,10 @@ public class AdminMeetingController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
     ) {
         return ResponseEntity.ok(adminMeetingService.getMeetings(page, size, search, status, from, to));
+    }
+
+    @DeleteMapping("/{meetingId}")
+    public ResponseEntity<ApiResponse<Void>> forceEndMeeting(@PathVariable Long meetingId) {
+        return ResponseEntity.ok(adminMeetingService.forceEndMeeting(meetingId));
     }
 }

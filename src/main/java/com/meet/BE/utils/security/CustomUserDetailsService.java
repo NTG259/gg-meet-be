@@ -22,7 +22,8 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new CustomUsersDetail(
                 user.getId(),
                 user.getEmail(),
-                user.getPassword()
+                user.getPassword(),
+                Boolean.TRUE.equals(user.getIsBanned())
         );
     }
 }

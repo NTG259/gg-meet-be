@@ -51,4 +51,14 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long userId) {
         return ResponseEntity.ok(adminUserService.deleteUser(userId));
     }
+
+    @PostMapping("/{userId}/ban")
+    public ResponseEntity<ApiResponse<AdminUserResponseDTO>> banUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.banUser(userId));
+    }
+
+    @PostMapping("/{userId}/unban")
+    public ResponseEntity<ApiResponse<AdminUserResponseDTO>> unbanUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.unbanUser(userId));
+    }
 }

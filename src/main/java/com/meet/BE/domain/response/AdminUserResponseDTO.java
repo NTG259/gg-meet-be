@@ -17,6 +17,7 @@ public class AdminUserResponseDTO {
     private String fullName;
     private String role;
     private String status;
+    private Boolean isBanned;
     private String avatar;
     private Long meetingCount;
     private LocalDateTime createdAt;

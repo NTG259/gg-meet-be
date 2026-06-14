@@ -100,24 +100,60 @@ public class AdminUserService {
                 .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        if (request.getFullName() != null && !request.getFullName().isBlank()) {
-            user.setFullName(request.getFullName().trim());
+        if (request.getRole() == null || request.getRole().isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
-        if (request.getRole() != null && !request.getRole().isBlank()) {
-            user.setRole(request.getRole().toUpperCase());
-        }
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            switch (request.getStatus().toUpperCase()) {
-                case "ACTIVE" -> user.setEnabled(true);
-                case "INACTIVE" -> user.setEnabled(false);
-                default -> throw new BusinessException(ErrorCode.INVALID_STATUS);
-            }
-        }
+        user.setRole(request.getRole().toUpperCase());
 
         User updated = userRepository.save(user);
         return new ApiResponse<>(
                 toAdminResponseDTO(updated, meetingRepository.countByHostId(updated.getId())),
                 "User updated successfully",
+                null,
+                HttpStatus.OK.value()
+        );
+    }
+
+    @Transactional
+    public ApiResponse<AdminUserResponseDTO> banUser(Long id) {
+        User user = userRepository.findById(id)
+                .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (Boolean.TRUE.equals(user.getIsBanned())) {
+            throw new BusinessException(ErrorCode.USER_BANNED);
+        }
+
+        user.setIsBanned(true);
+        Long currentVersion = user.getAccessTokenVersion() == null ? 0L : user.getAccessTokenVersion();
+        user.setAccessTokenVersion(currentVersion + 1);
+        user.setRefreshToken(null);
+
+        User updated = userRepository.save(user);
+        return new ApiResponse<>(
+                toAdminResponseDTO(updated, meetingRepository.countByHostId(updated.getId())),
+                "User banned successfully",
+                null,
+                HttpStatus.OK.value()
+        );
+    }
+
+    @Transactional
+    public ApiResponse<AdminUserResponseDTO> unbanUser(Long id) {
+        User user = userRepository.findById(id)
+                .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (!Boolean.TRUE.equals(user.getIsBanned())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        user.setIsBanned(false);
+
+        User updated = userRepository.save(user);
+        return new ApiResponse<>(
+                toAdminResponseDTO(updated, meetingRepository.countByHostId(updated.getId())),
+                "User unbanned successfully",
                 null,
                 HttpStatus.OK.value()
         );
@@ -192,6 +228,7 @@ public class AdminUserService {
         dto.setFullName(user.getFullName());
         dto.setRole(user.getRole());
         dto.setStatus(Boolean.TRUE.equals(user.getEnabled()) ? "ACTIVE" : "INACTIVE");
+        dto.setIsBanned(Boolean.TRUE.equals(user.getIsBanned()));
         dto.setAvatar(user.getAvatar());
         dto.setMeetingCount(meetingCount);
         dto.setCreatedAt(user.getCreatedAt());

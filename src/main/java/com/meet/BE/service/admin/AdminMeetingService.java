@@ -8,6 +8,8 @@ import com.meet.BE.domain.response.AdminMeetingResponseDTO;
 import com.meet.BE.domain.response.PagedResponse;
 import com.meet.BE.repository.MeetingParticipantRepository;
 import com.meet.BE.repository.MeetingRepository;
+import com.meet.BE.service.user.LiveKitService;
+import com.meet.BE.service.user.NotificationService;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +33,8 @@ public class AdminMeetingService {
 
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
+    private final LiveKitService liveKitService;
+    private final NotificationService notificationService;
 
     public ApiResponse<PagedResponse<AdminMeetingResponseDTO>> getMeetings(
             int page,
@@ -103,6 +108,26 @@ public class AdminMeetingService {
                         MeetingParticipantRepository.AcceptedParticipantCount::getParticipantCount,
                         Long::sum
                 ));
+    }
+
+    @Transactional
+    public ApiResponse<Void> forceEndMeeting(Long meetingId) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
+
+        if (meeting.getStatus() != MeetingStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
+        }
+
+        liveKitService.deleteRoom(meeting.getMeetingCode());
+
+        meeting.setStatus(MeetingStatus.ENDED);
+        meeting.setEndTime(LocalDateTime.now());
+        meetingRepository.save(meeting);
+
+        notificationService.sendMeetingEnded(meeting.getMeetingCode());
+
+        return new ApiResponse<>(null, "Meeting force-ended successfully", null, HttpStatus.OK.value());
     }
 
     private AdminMeetingResponseDTO toAdminResponseDTO(Meeting meeting, Long participantCount) {
