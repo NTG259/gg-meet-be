@@ -39,7 +39,7 @@ public class NotificationService {
                 participantName
         );
 
-        messagingTemplate.convertAndSend(topic(meetingCode), msg);
+        messagingTemplate.convertAndSend(waitingTopic(meetingCode), msg);
     }
 
     public void sendAdmit(String meetingCode, Long targetParticipantId, String participantName) {

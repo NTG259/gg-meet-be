@@ -88,6 +88,16 @@ public class MeetingParticipant {
         }
     }
 
+    public String getDisplayName() {
+        if (user != null) return user.getFullName();
+        if (guestName != null && !guestName.isBlank()) return guestName;
+        return email;
+    }
+
+    public String getContactEmail() {
+        return user != null ? user.getEmail() : email;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

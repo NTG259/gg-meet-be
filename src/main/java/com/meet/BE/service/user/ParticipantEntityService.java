@@ -67,6 +67,19 @@ public class ParticipantEntityService {
                 .findByMeetingIdAndUserId(meeting.getId(), user.getId());
     }
 
+    public Optional<MeetingParticipant> findExistingUserParticipantForUpdate(Meeting meeting, User user) {
+        return meetingParticipantRepository
+                .findByMeetingIdAndUserIdForUpdate(meeting.getId(), user.getId());
+    }
+
+    public Optional<MeetingParticipant> findExistingGuestParticipantForUpdate(Meeting meeting, GuestJoinRequest guestRequest) {
+        if (guestRequest == null || guestRequest.getGuestId() == null || guestRequest.getGuestId().isBlank()) {
+            return Optional.empty();
+        }
+        return meetingParticipantRepository
+                .findByMeetingIdAndGuestIdForUpdate(meeting.getId(), guestRequest.getGuestId());
+    }
+
     public Optional<MeetingParticipant> findInvitedUser(Meeting meeting, String email) {
         if (email == null || email.isBlank()) {
             return Optional.empty();
@@ -82,6 +95,8 @@ public class ParticipantEntityService {
         return meetingParticipantRepository
                 .findByMeetingIdAndGuestId(meeting.getId(), guestRequest.getGuestId());
     }
+
+
 
     public MeetingParticipant handleParticipantStatus(
             MeetingParticipant existing

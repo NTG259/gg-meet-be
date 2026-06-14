@@ -6,6 +6,7 @@ import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.enums.MeetingStatus;
 import com.meet.BE.domain.enums.ParticipantStatus;
 import com.meet.BE.domain.enums.Role;
+import com.meet.BE.domain.event.JoinRequestEvent;
 import com.meet.BE.domain.request.CreateInstantMeetingRequest;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.domain.request.ScheduleMeetingRequest;
@@ -16,6 +17,7 @@ import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +43,7 @@ public class MeetingOrchestratorService {
     private final ParticipantEntityService participantEntityService;
     private final EmailService emailService;
     private final ScheduleService scheduleService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(rollbackFor = Exception.class)
     public MeetingResponseDTO createInstantMeeting(User host, String title) {
@@ -78,69 +81,35 @@ public class MeetingOrchestratorService {
     }
 
     @Transactional
-    public MeetingResponseDTO joinRoomByGuest(
-            GuestJoinRequest guestRequest,
-            String meetingCode
-    ) {
+    public MeetingResponseDTO joinRoomByGuest(GuestJoinRequest guestRequest, String meetingCode) {
         Meeting meeting = meetingEntityService.validateMeetingBeforeJoin(meetingCode);
-
         MeetingParticipant participant = participantService.handleGuestJoin(meeting, guestRequest);
-
-        MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
-        response.setParticipantStatus(participant.getParticipantStatus());
+        MeetingResponseDTO response = buildJoinResponse(meeting, participant, meetingCode);
         response.setGuestSecret(participant.getGuestSecret());
-
-
-        String meetingToken = securityService.generateMeetingToken(
-                participant.getParticipantId(),
-                meetingCode,
-                participant.getRole().name()
-        );
-        response.setMeetingToken(meetingToken);
-
-        if (participant.getParticipantStatus() == ParticipantStatus.ACCEPT) {
-            response.setLivekitToken(
-                    liveKitService.buildLiveKitToken(participant, meetingCode)
-            );
-        } else {
-            notificationService.sendJoinRequest(meetingCode, participant.getParticipantId(), participant.getGuestName());
-        }
         return response;
     }
 
     @Transactional
-    public MeetingResponseDTO joinRoomByUser(
-            User currentUser,
-            String meetingCode
-    ) {
+    public MeetingResponseDTO joinRoomByUser(User currentUser, String meetingCode) {
         Meeting meeting = meetingEntityService.validateMeetingBeforeJoin(meetingCode);
-
         // OLD: authenticated scheduled hosts could be restored from invited-email rows as PARTICIPANT,
         // so they joined the room but never regained HOST waiting-room permissions.
         // NEW: resolve host joins first and reuse existing participants before the invite fallback.
-        MeetingParticipant participant =
-                participantService.handleAuthenticatedJoin(meeting, currentUser);
+        MeetingParticipant participant = participantService.handleAuthenticatedJoin(meeting, currentUser);
+        return buildJoinResponse(meeting, participant, meetingCode);
+    }
 
+    private MeetingResponseDTO buildJoinResponse(Meeting meeting, MeetingParticipant participant, String meetingCode) {
         MeetingResponseDTO response = MeetingConvert.ToResponse(meeting, null);
         response.setParticipantStatus(participant.getParticipantStatus());
-
-        String meetingToken = securityService.generateMeetingToken(
-                participant.getParticipantId(),
-                meetingCode,
-                participant.getRole().name()
-        );
-        response.setMeetingToken(meetingToken);
+        response.setMeetingToken(securityService.generateMeetingToken(
+                participant.getParticipantId(), meetingCode, participant.getRole().name()));
 
         if (participant.getParticipantStatus() == ParticipantStatus.ACCEPT) {
-            response.setLivekitToken(
-                    liveKitService.buildLiveKitToken(participant, meetingCode)
-            );
+            response.setLivekitToken(liveKitService.buildLiveKitToken(participant, meetingCode));
         } else {
-            notificationService.sendJoinRequest(
-                    meetingCode,
-                    participant.getParticipantId(),
-                    currentUser.getFullName()
-            );
+            eventPublisher.publishEvent(
+                    new JoinRequestEvent(meetingCode, participant.getParticipantId(), participant.getDisplayName()));
         }
         return response;
     }
@@ -156,17 +125,10 @@ public class MeetingOrchestratorService {
         );
 
         if (removeParticipant == null) return;
-        String removeParticipantName = null;
-        if (removeParticipant.getGuestName() == null) {
-            removeParticipantName = removeParticipant.getUser().getFullName();
-        } else {
-            removeParticipantName = removeParticipant.getGuestName();
-        }
-
         notificationService.sendWaitingCancelled(
                 meetingCode,
                 removeParticipant.getParticipantId(),
-                removeParticipantName
+                removeParticipant.getDisplayName()
         );
     }
 
@@ -178,8 +140,7 @@ public class MeetingOrchestratorService {
         permissionService.assertHostPermission(host);
         MeetingParticipant participant = this.participantEntityService.validateParticipantInMeeting(targetParticipantId, meetingCode);
         participant = this.participantService.handleAcceptParticipant(participant);
-        String name = participant.getUser() == null ? participant.getGuestName() : participant.getUser().getFullName();
-        notificationService.sendAdmit(meetingCode, participant.getParticipantId(), name);
+        notificationService.sendAdmit(meetingCode, participant.getParticipantId(), participant.getDisplayName());
 
         return participant;
     }
@@ -193,10 +154,7 @@ public class MeetingOrchestratorService {
         MeetingParticipant participant = this.participantEntityService.validateParticipantInMeeting(targetParticipantId, meetingCode);
 
         MeetingParticipant newParticipant = this.participantService.handleRejectParticipant(participant);
-        String participantName = newParticipant.getGuestName() == null ?
-                newParticipant.getUser().getFullName() : newParticipant.getGuestName();
-
-        notificationService.sendReject(meetingCode, targetParticipantId, hostId ,participantName);
+        notificationService.sendReject(meetingCode, targetParticipantId, hostId, newParticipant.getDisplayName());
     }
 
     @Transactional
@@ -324,17 +282,10 @@ public class MeetingOrchestratorService {
     }
 
     private WaitingRoomParticipantResponseDTO mapWaitingParticipant(MeetingParticipant participant) {
-        String participantName = participant.getGuestName();
-        if (participantName == null || participantName.isBlank()) {
-            participantName = participant.getUser() != null
-                    ? participant.getUser().getFullName()
-                    : participant.getEmail();
-        }
-
         return WaitingRoomParticipantResponseDTO.builder()
                 .participantId(participant.getParticipantId())
-                .name(participantName)
-                .email(participant.getUser() != null ? participant.getUser().getEmail() : participant.getEmail())
+                .name(participant.getDisplayName())
+                .email(participant.getContactEmail())
                 .participantStatus(participant.getParticipantStatus())
                 .requestedAt(participant.getCreatedAt() == null ? null : participant.getCreatedAt().toString())
                 .build();
@@ -350,7 +301,6 @@ public class MeetingOrchestratorService {
         String identity = this.liveKitService.buildIdentity(kicked);
         this.liveKitService.removeParticipant(meetingCode, identity);
 
-        String participantName = kicked.getUser() == null ? kicked.getGuestName() : kicked.getUser().getFullName();
-        this.notificationService.sendUserKicked(meetingCode, kicked.getParticipantId(), participantName, isBan);
+        this.notificationService.sendUserKicked(meetingCode, kicked.getParticipantId(), kicked.getDisplayName(), isBan);
     }
 }

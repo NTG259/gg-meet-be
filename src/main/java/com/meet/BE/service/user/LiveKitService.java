@@ -74,12 +74,9 @@ public class LiveKitService {
         return participant.getGuestId();
     }
 
-    private String buildUserToken(MeetingParticipant participant, String meetingCode) {
+    private AccessToken createBaseToken(MeetingParticipant participant, String meetingCode) {
         AccessToken token = new AccessToken(apiKey, apiSecret);
-        User user = participant.getUser();
-        Role role = participant.getRole() != null ? participant.getRole() : Role.PARTICIPANT;
-
-        token.setName(user.getFullName());
+        token.setName(participant.getDisplayName());
         token.setIdentity(buildIdentity(participant));
         token.addGrants(new VideoGrant[] {
                 new RoomJoin(true),
@@ -88,6 +85,13 @@ public class LiveKitService {
                 new CanSubscribe(true),
                 new CanUpdateOwnMetadata(true),
         });
+        return token;
+    }
+
+    private String buildUserToken(MeetingParticipant participant, String meetingCode) {
+        AccessToken token = createBaseToken(participant, meetingCode);
+        User user = participant.getUser();
+        Role role = participant.getRole() != null ? participant.getRole() : Role.PARTICIPANT;
         try {
             LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("participantId", participant.getParticipantId());
@@ -95,7 +99,6 @@ public class LiveKitService {
             metadata.put("type", "USER");
             metadata.put("meetingCode", meetingCode);
             metadata.put("avatar", user.getAvatar() == null ? "" : user.getAvatar());
-
             token.setMetadata(objectMapper.writeValueAsString(metadata));
         } catch (Exception e) {
             throw new RuntimeException("Cannot build metadata", e);
@@ -104,23 +107,12 @@ public class LiveKitService {
     }
 
     private String buildGuestToken(MeetingParticipant guest, String meetingCode) {
-        AccessToken token = new AccessToken(apiKey, apiSecret);
-        Role role = Role.PARTICIPANT;
-
-        token.setName(guest.getGuestName());
-        token.setIdentity(buildIdentity(guest));
-        token.addGrants(new VideoGrant[] {
-                new RoomJoin(true),
-                new RoomName(meetingCode),
-                new CanPublish(true),
-                new CanSubscribe(true),
-                new CanUpdateOwnMetadata(true),
-        });
+        AccessToken token = createBaseToken(guest, meetingCode);
         try {
             Map<String, Object> metadata = Map.of(
                     "participantId", guest.getParticipantId(),
                     "guestId", guest.getGuestId(),
-                    "role", role.name(),
+                    "role", Role.PARTICIPANT.name(),
                     "type", "GUEST",
                     "meetingCode", meetingCode);
             token.setMetadata(objectMapper.writeValueAsString(metadata));

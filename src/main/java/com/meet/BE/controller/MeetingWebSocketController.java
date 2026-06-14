@@ -21,16 +21,15 @@ public class MeetingWebSocketController {
 
     @MessageMapping("/meeting/accept")
     public void admit(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
-
-        // Lấy ID của Host thao tác từ WebSocket Session (đã lưu lúc check Token)
-
         Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+        assertSameMeeting(headerAccessor, msg.getMeetingCode());
         MeetingParticipant participant = this.meetingOrchestratorService.admit(msg.getMeetingCode(), msg.getTargetParticipantId(), hostParticipantId);
     }
 
     @MessageMapping("/meeting/reject")
     public void reject(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
         Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+        assertSameMeeting(headerAccessor, msg.getMeetingCode());
         this.meetingOrchestratorService.reject(
                 msg.getMeetingCode(),
                 msg.getTargetParticipantId(),
