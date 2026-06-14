@@ -88,8 +88,8 @@ public class SecurityConfig {
                 )
 
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        .bearerTokenResolver(cookieTokenResolver())
                         .jwt(jwt -> jwt
-                                // Thêm dòng này vào cấu hình jwt của bạn
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter())
                         )
                         .authenticationEntryPoint(customAuthenticationEntryPoint)

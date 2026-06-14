@@ -10,6 +10,7 @@ import com.meet.BE.repository.MeetingRepository;
 import com.meet.BE.repository.UserRepository;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
+import com.meet.BE.utils.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -103,7 +104,13 @@ public class AdminUserService {
         if (request.getRole() == null || request.getRole().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
-        user.setRole(request.getRole().toUpperCase());
+
+        String newRole = request.getRole().toUpperCase();
+        if ("ADMIN".equals(user.getRole()) && !"ADMIN".equals(newRole)) {
+            assertNotLastAdmin(user);
+        }
+
+        user.setRole(newRole);
 
         User updated = userRepository.save(user);
         return new ApiResponse<>(
@@ -116,12 +123,22 @@ public class AdminUserService {
 
     @Transactional
     public ApiResponse<AdminUserResponseDTO> banUser(Long id) {
+        User caller = getCurrentAdmin();
+
+        if (caller.getId().equals(id)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+
         User user = userRepository.findById(id)
                 .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         if (Boolean.TRUE.equals(user.getIsBanned())) {
             throw new BusinessException(ErrorCode.USER_BANNED);
+        }
+
+        if ("ADMIN".equals(user.getRole())) {
+            assertNotLastAdmin(user);
         }
 
         user.setIsBanned(true);
@@ -165,11 +182,29 @@ public class AdminUserService {
                 .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        if ("ADMIN".equals(user.getRole())) {
+            assertNotLastAdmin(user);
+        }
+
         user.setIsDeleted(true);
         user.setEnabled(false);
         userRepository.save(user);
 
         return new ApiResponse<>(null, "User deleted (deactivated) successfully", null, HttpStatus.OK.value());
+    }
+
+    private User getCurrentAdmin() {
+        String email = SecurityUtils.getCurrentUserLogin()
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private void assertNotLastAdmin(User target) {
+        if (!"ADMIN".equals(target.getRole())) return;
+        if (userRepository.countActiveAdmins() <= 1) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
     }
 
     private String normalizeSearch(String search) {

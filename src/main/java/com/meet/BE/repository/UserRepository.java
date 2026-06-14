@@ -43,4 +43,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("enabled") Boolean enabled,
             Pageable pageable
     );
+
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = 'ADMIN' AND u.isDeleted = false AND u.enabled = true AND u.isBanned = false")
+    long countActiveAdmins();
 }
