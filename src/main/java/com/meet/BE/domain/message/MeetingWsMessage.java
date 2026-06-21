@@ -1,6 +1,5 @@
 package com.meet.BE.domain.message;
 
-import com.meet.BE.domain.enums.TrackType;
 import lombok.Data;
 
 import java.util.Map;
@@ -12,6 +11,7 @@ public class MeetingWsMessage {
     private String targetName;
     private String action;
     private Boolean isBan;
-    private TrackType trackType;
+    private Boolean allowParticipantUnmute;
+    private Boolean allowParticipantShareScreen;
     private Map<String, Object> extra;
 }

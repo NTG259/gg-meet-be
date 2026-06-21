@@ -45,6 +45,9 @@ public class MeetingParticipant {
     @Column(name = "guest_name", length = 100)
     private String guestName;
 
+    @Column(name = "guest_secret", length = 100)
+    private String guestSecret;
+
     // ===== ROLE & STATUS =====
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -83,6 +86,16 @@ public class MeetingParticipant {
         if (hasGuest && (guestName == null || guestName.isBlank())) {
             throw new IllegalStateException("Tên khách không được để trống");
         }
+    }
+
+    public String getDisplayName() {
+        if (user != null) return user.getFullName();
+        if (guestName != null && !guestName.isBlank()) return guestName;
+        return email;
+    }
+
+    public String getContactEmail() {
+        return user != null ? user.getEmail() : email;
     }
 
     @Override

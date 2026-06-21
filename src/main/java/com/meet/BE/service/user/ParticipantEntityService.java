@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +39,7 @@ public class ParticipantEntityService {
         p.setMeeting(meeting);
         p.setGuestId(guest.getGuestId());
         p.setGuestName(guest.getGuestName());
+        p.setGuestSecret(UUID.randomUUID().toString());
         p.setRole(Role.PARTICIPANT);
         p.setParticipantStatus(ParticipantStatus.WAITING);
         return meetingParticipantRepository.save(p);
@@ -65,6 +67,19 @@ public class ParticipantEntityService {
                 .findByMeetingIdAndUserId(meeting.getId(), user.getId());
     }
 
+    public Optional<MeetingParticipant> findExistingUserParticipantForUpdate(Meeting meeting, User user) {
+        return meetingParticipantRepository
+                .findByMeetingIdAndUserIdForUpdate(meeting.getId(), user.getId());
+    }
+
+    public Optional<MeetingParticipant> findExistingGuestParticipantForUpdate(Meeting meeting, GuestJoinRequest guestRequest) {
+        if (guestRequest == null || guestRequest.getGuestId() == null || guestRequest.getGuestId().isBlank()) {
+            return Optional.empty();
+        }
+        return meetingParticipantRepository
+                .findByMeetingIdAndGuestIdForUpdate(meeting.getId(), guestRequest.getGuestId());
+    }
+
     public Optional<MeetingParticipant> findInvitedUser(Meeting meeting, String email) {
         if (email == null || email.isBlank()) {
             return Optional.empty();
@@ -74,9 +89,14 @@ public class ParticipantEntityService {
                 .findByMeetingIdAndEmailIgnoreCase(meeting.getId(), email.trim());
     }
     public Optional<MeetingParticipant> findExistingGuestParticipant(Meeting meeting, GuestJoinRequest guestRequest) {
+        if (guestRequest == null || guestRequest.getGuestId() == null || guestRequest.getGuestId().isBlank()) {
+            return Optional.empty();
+        }
         return meetingParticipantRepository
                 .findByMeetingIdAndGuestId(meeting.getId(), guestRequest.getGuestId());
     }
+
+
 
     public MeetingParticipant handleParticipantStatus(
             MeetingParticipant existing

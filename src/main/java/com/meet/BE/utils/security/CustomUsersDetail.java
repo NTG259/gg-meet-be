@@ -15,6 +15,7 @@ public class CustomUsersDetail implements UserDetails {
     private Long id;
     private String email;
     private String password;
+    private boolean banned;
 
 
     @Override
@@ -39,7 +40,7 @@ public class CustomUsersDetail implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return UserDetails.super.isAccountNonLocked();
+        return !banned;
     }
 
     @Override

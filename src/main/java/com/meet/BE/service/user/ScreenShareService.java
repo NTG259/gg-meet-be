@@ -22,25 +22,26 @@ public class ScreenShareService {
     private final ParticipantEntityService participantEntityService;
     private final ParticipantPermissionService permissionService;
     private final ObjectMapper objectMapper;
+    private final RoomMetadataService roomMetadataService;
 
     public void updateScreenShareSetting(String meetingCode, Long hostParticipantId, boolean allowParticipantShareScreen) {
         MeetingParticipant host = participantEntityService.getParticipantInMeeting(hostParticipantId, meetingCode);
         permissionService.assertHostPermission(host);
 
-        Map<String, Object> roomMetadata = new LinkedHashMap<>();
-        roomMetadata.put("allowParticipantShareScreen", allowParticipantShareScreen);
-
+        boolean allowParticipantUnmute;
         try {
-            String metadataJson = objectMapper.writeValueAsString(roomMetadata);
-            liveKitService.updateRoomMetadata(meetingCode, metadataJson);
+            Map<String, Object> roomMetadata = roomMetadataService.updateRoomMetadata(
+                    meetingCode,
+                    metadata -> metadata.put("allowParticipantShareScreen", allowParticipantShareScreen));
+            allowParticipantUnmute = Boolean.TRUE.equals(roomMetadata.getOrDefault("allowParticipantUnmute", true));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SCREEN_SHARE_OPERATION_FAILED);
         }
 
-        notificationService.sendRoomSettingsChanged(meetingCode, allowParticipantShareScreen);
+        notificationService.sendRoomSettingsChanged(meetingCode, allowParticipantShareScreen, allowParticipantUnmute);
 
         if (!allowParticipantShareScreen) {
-            forceStopAllScreenShares(meetingCode);
+            forceStopAllScreenShares(meetingCode, liveKitService.buildIdentity(host));
         }
     }
 
@@ -55,7 +56,7 @@ public class ScreenShareService {
         permissionService.assertHostPermission(host);
 
         MeetingParticipant requester = participantEntityService.getParticipantInMeeting(requesterId, meetingCode);
-        String identity = resolveIdentity(requester);
+        String identity = liveKitService.buildIdentity(requester);
 
         updateCanShareScreenOverride(meetingCode, identity, true);
 
@@ -74,7 +75,7 @@ public class ScreenShareService {
         permissionService.assertHostPermission(host);
 
         MeetingParticipant target = participantEntityService.getParticipantInMeeting(targetParticipantId, meetingCode);
-        String identity = resolveIdentity(target);
+        String identity = liveKitService.buildIdentity(target);
 
         liveKitService.muteScreenShareTrack(meetingCode, identity);
 
@@ -83,9 +84,12 @@ public class ScreenShareService {
         notificationService.sendScreenShareStopped(meetingCode, targetParticipantId);
     }
 
-    private void forceStopAllScreenShares(String meetingCode) {
+    private void forceStopAllScreenShares(String meetingCode, String hostIdentity) {
         List<String> sharingIdentities = liveKitService.getScreenSharingIdentities(meetingCode);
         for (String identity : sharingIdentities) {
+            if (identity.equals(hostIdentity)) {
+                continue;
+            }
             try {
                 liveKitService.muteScreenShareTrack(meetingCode, identity);
                 log.info("Force stopped screen share for identity: {} in room: {}", identity, meetingCode);
@@ -112,13 +116,6 @@ public class ScreenShareService {
             log.warn("Failed to update canShareScreenOverride to {} for identity: {} in room: {}",
                     canShare, identity, meetingCode);
         }
-    }
-
-    private String resolveIdentity(MeetingParticipant participant) {
-        if (participant.getUser() != null) {
-            return "user-" + participant.getUser().getId();
-        }
-        return "guest-" + participant.getGuestId();
     }
 
     private String resolveParticipantName(MeetingParticipant participant) {

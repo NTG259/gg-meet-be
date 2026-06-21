@@ -48,6 +48,12 @@ public class LiveKitWebhookController {
                 log.info(">>> [LIVEKIT WEBHOOK] Room {} finished. Updating DB...", meetingCode);
                 webhookService.autoEndMeeting(meetingCode);
             }
+            if ("participant_joined".equals(eventName) && event.hasRoom() && event.hasParticipant()) {
+                webhookService.removeUnauthorizedParticipant(
+                        event.getRoom().getName(),
+                        event.getParticipant().getIdentity()
+                );
+            }
             // Trả về ACK cho Livekit, nếu không nó sẽ spam gửi lại
             return ResponseEntity.ok().build();
 

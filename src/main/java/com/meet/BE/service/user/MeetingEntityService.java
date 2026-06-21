@@ -32,7 +32,7 @@ public class MeetingEntityService {
     private final MeetingParticipantRepository meetingParticipantRepository;
     private final UserService userService;
 
-    public Meeting createInstantMeetingEntity(User host, String meetingCode, String title) {
+    public Meeting createInstantMeetingEntity(User host, String meetingCode, String title, String roomSid) {
         Meeting meeting = new Meeting();
         meeting.setHost(host);
         meeting.setMeetingCode(meetingCode);
@@ -40,7 +40,7 @@ public class MeetingEntityService {
         meeting.setStatus(MeetingStatus.ACTIVE);
         meeting.setCreatedAt(LocalDateTime.now());
         meeting.setStartTime(LocalDateTime.now());
-        meeting.setRoomSid(meetingCode);
+        meeting.setRoomSid(roomSid);
         meeting.setIsScheduled(false);
         return meetingRepository.save(meeting);
     }
@@ -54,7 +54,6 @@ public class MeetingEntityService {
         meeting.setDescription(request.getDescription());
         meeting.setStatus(MeetingStatus.SCHEDULED);
         meeting.setStartTime(LocalDateTime.of(request.getMeetingDate(), request.getMeetingTime()));
-        meeting.setRoomSid(meetingCode);
         meeting.setIsScheduled(true);
         return meetingRepository.save(meeting);
     }
@@ -132,11 +131,15 @@ public class MeetingEntityService {
     private UpcomingMeetingItemResponse mapUpcomingMeeting(Meeting meeting) {
         return new UpcomingMeetingItemResponse(
                 meeting.getTitle(),
-                meeting.getStartTime(),
-                meeting.getEndTime(),
+                formatLocalDateTime(meeting.getStartTime()),
+                formatLocalDateTime(meeting.getEndTime()),
                 meeting.getHost().getFullName(),
                 meeting.getMeetingCode(),
                 meeting.getStatus()
         );
+    }
+
+    private String formatLocalDateTime(LocalDateTime value) {
+        return value == null ? null : value.toString();
     }
 }

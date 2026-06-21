@@ -28,6 +28,9 @@ public class ScheduleMeetingRequest {
     @NotNull(message = "Meeting time is required")
     private LocalTime meetingTime;  // Giờ phút (Ví dụ: 14:30:00)
 
+    @NotBlank(message = "Time zone is required")
+    private String timeZone;
+
     private String description;     // Mô tả cuộc họp
 
     private List<@Email(message = "Invalid email format") String> emailList; // Danh sách email người tham dự

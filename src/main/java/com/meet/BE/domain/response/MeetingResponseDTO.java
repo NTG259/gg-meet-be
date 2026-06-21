@@ -3,8 +3,6 @@ import com.meet.BE.domain.enums.MeetingStatus;
 import com.meet.BE.domain.enums.ParticipantStatus;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -16,9 +14,10 @@ public class MeetingResponseDTO {
     private String roomSid;
     private String title;
     private MeetingStatus status;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
+    private String startTime;
+    private String endTime;
     private String livekitToken;
     private String meetingToken;
+    private String guestSecret;
     private ParticipantStatus participantStatus;
 }

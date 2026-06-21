@@ -3,8 +3,8 @@ package com.meet.BE.controller;
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.message.MeetingWsMessage;
 import com.meet.BE.service.user.MeetingOrchestratorService;
-import com.meet.BE.service.user.ParticipantServiceRF;
-import com.meet.BE.service.user.TargetedMuteService;
+import com.meet.BE.utils.errors.BusinessException;
+import com.meet.BE.utils.errors.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,21 +18,18 @@ import org.springframework.stereotype.Controller;
 public class MeetingWebSocketController {
 
     private final MeetingOrchestratorService meetingOrchestratorService;
-    private final ParticipantServiceRF participantServiceRF;
-    private final TargetedMuteService targetedMuteService;
 
     @MessageMapping("/meeting/accept")
     public void admit(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
-
-        // Lấy ID của Host thao tác từ WebSocket Session (đã lưu lúc check Token)
-
         Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+        assertSameMeeting(headerAccessor, msg.getMeetingCode());
         MeetingParticipant participant = this.meetingOrchestratorService.admit(msg.getMeetingCode(), msg.getTargetParticipantId(), hostParticipantId);
     }
 
     @MessageMapping("/meeting/reject")
     public void reject(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
         Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
+        assertSameMeeting(headerAccessor, msg.getMeetingCode());
         this.meetingOrchestratorService.reject(
                 msg.getMeetingCode(),
                 msg.getTargetParticipantId(),
@@ -41,15 +38,36 @@ public class MeetingWebSocketController {
 
     @MessageMapping("/meeting/cancel-join")
     public void cancelJoin(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
-        participantServiceRF.cancelWaiting(msg.getTargetParticipantId(), msg.getMeetingCode());
+        Long callerParticipantId = getParticipantIdFromSession(headerAccessor);
+        assertSameMeeting(headerAccessor, msg.getMeetingCode());
+
+        if (!callerParticipantId.equals(msg.getTargetParticipantId())) {
+            throw new BusinessException(ErrorCode.NOT_PERMIT);
+        }
+
+        meetingOrchestratorService.cancelJoin(callerParticipantId, msg.getMeetingCode());
     }
 
 
     private Long getParticipantIdFromSession(SimpMessageHeaderAccessor headerAccessor) {
         if (headerAccessor.getSessionAttributes() == null) {
-            return null;
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        return (Long) headerAccessor.getSessionAttributes().get("participantId");
+        Object participantId = headerAccessor.getSessionAttributes().get("participantId");
+        if (!(participantId instanceof Long)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return (Long) participantId;
+    }
+
+    private void assertSameMeeting(SimpMessageHeaderAccessor headerAccessor, String meetingCode) {
+        if (headerAccessor.getSessionAttributes() == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Object sessionMeetingCode = headerAccessor.getSessionAttributes().get("meetingCode");
+        if (!meetingCode.equals(sessionMeetingCode)) {
+            throw new BusinessException(ErrorCode.NOT_PERMIT);
+        }
     }
 
     @MessageMapping("/meeting/kickout")
@@ -61,15 +79,5 @@ public class MeetingWebSocketController {
                 msg.getTargetParticipantId(),
                 hostParticipantId,
                 isBan);
-    }
-
-    @MessageMapping("/meeting/mute")
-    public void mute(SimpMessageHeaderAccessor headerAccessor, MeetingWsMessage msg) {
-        Long hostParticipantId = getParticipantIdFromSession(headerAccessor);
-        this.targetedMuteService.muteParticipant(
-                msg.getMeetingCode(),
-                msg.getTargetParticipantId(),
-                hostParticipantId,
-                msg.getTrackType());
     }
 }

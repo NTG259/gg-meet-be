@@ -6,9 +6,7 @@ import com.meet.BE.utils.errors.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.ObjectMapper;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -20,23 +18,23 @@ public class RoomMuteService {
     private final NotificationService notificationService;
     private final ParticipantEntityService participantEntityService;
     private final ParticipantPermissionService permissionService;
-    private final ObjectMapper objectMapper;
+    private final RoomMetadataService roomMetadataService;
 
     public void updateMuteSetting(String meetingCode, Long hostParticipantId, boolean allowParticipantUnmute) {
         MeetingParticipant host = participantEntityService.getParticipantInMeeting(hostParticipantId, meetingCode);
         permissionService.assertHostPermission(host);
 
-        Map<String, Object> roomMetadata = new LinkedHashMap<>();
-        roomMetadata.put("allowParticipantUnmute", allowParticipantUnmute);
-
+        boolean allowParticipantShareScreen;
         try {
-            String metadataJson = objectMapper.writeValueAsString(roomMetadata);
-            liveKitService.updateRoomMetadata(meetingCode, metadataJson);
+            Map<String, Object> roomMetadata = roomMetadataService.updateRoomMetadata(
+                    meetingCode,
+                    metadata -> metadata.put("allowParticipantUnmute", allowParticipantUnmute));
+            allowParticipantShareScreen = Boolean.TRUE.equals(roomMetadata.getOrDefault("allowParticipantShareScreen", true));
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.MUTE_OPERATION_FAILED);
         }
 
-        notificationService.sendMuteSettingsChanged(meetingCode, allowParticipantUnmute);
+        notificationService.sendRoomSettingsChanged(meetingCode, allowParticipantShareScreen, allowParticipantUnmute);
 
         if (!allowParticipantUnmute) {
             liveKitService.forceMuteAllNonHosts(meetingCode);

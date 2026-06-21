@@ -20,15 +20,8 @@ public class TargetedMuteService {
         permissionService.assertHostPermission(host);
 
         MeetingParticipant target = participantEntityService.getParticipantInMeeting(targetParticipantId, meetingCode);
-        String identity = resolveIdentity(target);
+        String identity = liveKitService.buildIdentity(target);
 
         liveKitService.muteParticipantTrack(meetingCode, identity, trackType);
-    }
-
-    private String resolveIdentity(MeetingParticipant participant) {
-        if (participant.getUser() != null) {
-            return "user-" + participant.getUser().getId();
-        }
-        return "guest-" + participant.getGuestId();
     }
 }

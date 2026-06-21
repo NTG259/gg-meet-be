@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -50,7 +51,10 @@ public class AuthController {
     private Long refreshTokenExpiration;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginDTO loginDTO) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @RequestBody LoginDTO loginDTO,
+            @RequestHeader(name = "X-Client", required = false) String clientType
+    ) {
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword());
         try {
@@ -77,6 +81,10 @@ public class AuthController {
 
             String refreshToken = securityService.createRefreshToken(loginResponse);
             this.userService.updateUserToken(refreshToken, loginResponse.getUser().getEmail());
+
+            if (isTokenClient(null, clientType)) {
+                loginResponse.setRefreshToken(refreshToken);
+            }
 
             ResponseCookie refreshTokenCookie = buildRefreshTokenCookie(refreshToken);
 
@@ -132,8 +140,21 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<LoginResponse>> getRefreshToken(
-            @CookieValue(name = "rf_token") String refreshToken
+            @CookieValue(name = "rf_token", required = false) String cookieRefreshToken,
+            @RequestHeader(name = "X-Refresh-Token", required = false) String headerRefreshToken,
+            @RequestHeader(name = "X-Client", required = false) String clientType
     ) {
+        // Non-browser clients (Electron app://, Flutter) cannot use the cookie
+        // jar; they send the refresh token explicitly and get the rotated one
+        // back in the body. The web keeps the cookie-only flow untouched.
+        String refreshToken = (headerRefreshToken != null && !headerRefreshToken.isBlank())
+                ? headerRefreshToken
+                : cookieRefreshToken;
+
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
         Jwt decodedToken = this.securityUtils.checkValidRefreshToken(refreshToken);
         String email = decodedToken.getSubject();
 
@@ -152,6 +173,10 @@ public class AuthController {
         String newRefreshToken = securityService.createRefreshToken(loginResponse);
         this.userService.updateUserToken(newRefreshToken, email);
 
+        if (isTokenClient(headerRefreshToken, clientType)) {
+            loginResponse.setRefreshToken(newRefreshToken);
+        }
+
         ResponseCookie refreshTokenCookie = buildRefreshTokenCookie(newRefreshToken);
 
         return ResponseEntity.ok()
@@ -164,7 +189,7 @@ public class AuthController {
         String email = SecurityUtils.getCurrentUserLogin()
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN));
 
-        userService.updateUserToken(null, email);
+        userService.revokeUserTokens(email);
 
         ResponseCookie deleteRefreshTokenCookie = ResponseCookie
                 .from("rf_token", "")
@@ -218,6 +243,14 @@ public class AuthController {
                         )
                 );
 
+    }
+
+    private boolean isTokenClient(String headerRefreshToken, String clientType) {
+        if (headerRefreshToken != null && !headerRefreshToken.isBlank()) {
+            return true;
+        }
+
+        return "desktop".equalsIgnoreCase(clientType) || "mobile".equalsIgnoreCase(clientType);
     }
 
     private ResponseCookie buildRefreshTokenCookie(String refreshToken) {

@@ -26,7 +26,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenRepository tokenRepository;
-    private final EmailService emailService;
 
     @Transactional
     public ApiResponse<UserResponseDTO> createUser(CreateUserDTO userDto) {
@@ -78,6 +77,16 @@ public class UserService {
         User user = this.userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         user.setRefreshToken(token);
+        this.userRepository.save(user);
+    }
+
+    @Transactional
+    public void revokeUserTokens(String email) {
+        User user = this.userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Long currentVersion = user.getAccessTokenVersion() == null ? 0L : user.getAccessTokenVersion();
+        user.setAccessTokenVersion(currentVersion + 1);
+        user.setRefreshToken(null);
         this.userRepository.save(user);
     }
 

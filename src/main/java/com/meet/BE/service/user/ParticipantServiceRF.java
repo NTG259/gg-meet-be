@@ -4,7 +4,6 @@ import com.meet.BE.domain.entity.Meeting;
 import com.meet.BE.domain.entity.MeetingParticipant;
 import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.enums.ParticipantStatus;
-import com.meet.BE.domain.enums.Role;
 import com.meet.BE.domain.request.GuestJoinRequest;
 import com.meet.BE.utils.errors.BusinessException;
 import com.meet.BE.utils.errors.ErrorCode;
@@ -14,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -33,8 +33,9 @@ public class ParticipantServiceRF {
             return this.participantEntityService.ensureHostParticipant(meeting, user);
         }
 
+        // PESSIMISTIC_WRITE: serialise concurrent reject() + re-join() on the same row
         Optional<MeetingParticipant> existingOpt =
-                participantEntityService.findExistingUserParticipant(meeting, user);
+                participantEntityService.findExistingUserParticipantForUpdate(meeting, user);
         if (existingOpt.isPresent()) {
             log.info(
                     "Existing authenticated participant found: participantId={}, status={}",
@@ -49,6 +50,8 @@ public class ParticipantServiceRF {
 
     @Transactional
     public MeetingParticipant handleGuestJoin(Meeting meeting, GuestJoinRequest guestRequest) {
+        validateGuestRequest(guestRequest);
+
         log.info(
                 "Handling guest join: meetingId={}, meetingCode={}, guestId={}, guestName={}",
                 meeting.getId(),
@@ -56,11 +59,14 @@ public class ParticipantServiceRF {
                 guestRequest != null ? guestRequest.getGuestId() : null,
                 guestRequest != null ? guestRequest.getGuestName() : null
         );
-        // Cho chức năng Guest
+        // PESSIMISTIC_WRITE: serialise concurrent reject() + re-join() on the same row
         Optional<MeetingParticipant> existingOpt = this.participantEntityService
-                .findExistingGuestParticipant(meeting, guestRequest);
+                .findExistingGuestParticipantForUpdate(meeting, guestRequest);
         // Kiểm tra người này đã vào phòng lần nào chưa
         if (existingOpt.isPresent()) {
+            if (!isGuestSecretValid(existingOpt.get(), guestRequest)) {
+                throw new BusinessException(ErrorCode.NOT_PERMIT);
+            }
             log.info(
                     "Existing guest participant found: participantId={}, status={}",
                     existingOpt.get().getParticipantId(),
@@ -96,6 +102,7 @@ public class ParticipantServiceRF {
             } else {
                 participant.setGuestId(guest.getGuestId());
                 participant.setGuestName(guest.getGuestName());
+                participant.setGuestSecret(UUID.randomUUID().toString());
             }
             log.info(
                     "Invited participant matched: participantId={}, previousStatus={}",
@@ -103,45 +110,17 @@ public class ParticipantServiceRF {
                     participant.getParticipantStatus()
             );
             return this.participantEntityService.handleParticipantStatus(participant);
-        } else {
-            if (user != null) {
-                log.info("No invited participant found, falling back to authenticated waiting flow: userId={}", user.getId());
-                return handleUserJoin(meeting, user);
-            } else {
-                log.info("No invited participant found, falling back to guest waiting flow");
-                return handleGuestJoin(meeting, guest);
-            }
         }
-    }
 
-    public MeetingParticipant handleUserJoin(Meeting meeting, User user) {
-        Optional<MeetingParticipant> existingOpt =
-                participantEntityService.findExistingUserParticipant(meeting, user);
-        log.info(
-                "Handling user join: meetingId={}, meetingCode={}, userId={}, existingFound={}",
-                meeting.getId(),
-                meeting.getMeetingCode(),
-                user.getId(),
-                existingOpt.isPresent()
-        );
-        // Nếu đã từng vào
-        if (existingOpt.isPresent()) {
-            log.info(
-                    "Existing user participant found: participantId={}, status={}",
-                    existingOpt.get().getParticipantId(),
-                    existingOpt.get().getParticipantStatus()
-            );
-            return participantEntityService.handleParticipantStatus(existingOpt.get());
+        if (user != null) {
+            log.info("No invited participant found, creating waiting entry: userId={}", user.getId());
+            MeetingParticipant created = participantEntityService.createUserParticipant(meeting, user, ParticipantStatus.WAITING);
+            log.info("Created waiting user participant: participantId={}, userId={}", created.getParticipantId(), user.getId());
+            return created;
         }
-        // Nếu user chưa từng vào thì phải waiting
-        MeetingParticipant created = participantEntityService.createUserParticipant(meeting, user, ParticipantStatus.WAITING);
-        log.info(
-                "Created waiting user participant: participantId={}, userId={}, status={}",
-                created.getParticipantId(),
-                user.getId(),
-                created.getParticipantStatus()
-        );
-        return created;
+
+        log.info("No invited participant found, falling back to guest waiting flow");
+        return handleGuestJoin(meeting, guest);
     }
 
     @Transactional
@@ -165,13 +144,7 @@ public class ParticipantServiceRF {
         MeetingParticipant participant = participantEntityService
                 .validateCancelableWaiting(participantId, meetingCode);
         if (participant == null) return null;
-        participantEntityService.removeParticipant(participantId);
-        return participant;
-    }
-
-    @Transactional
-    public void endMeetingForEverybody() {
-
+        return participantEntityService.updateParticipantStatus(participant, ParticipantStatus.LEFT);
     }
 
     @Transactional
@@ -179,5 +152,21 @@ public class ParticipantServiceRF {
         MeetingParticipant participant = participantEntityService.validateParticipantInMeeting(targetParticipantId, meetingCode);
         ParticipantStatus status = isBan ? ParticipantStatus.BLOCK : ParticipantStatus.LEFT;
         return participantEntityService.updateParticipantStatus(participant, status);
+    }
+
+    private void validateGuestRequest(GuestJoinRequest guestRequest) {
+        if (guestRequest == null
+                || guestRequest.getGuestId() == null
+                || guestRequest.getGuestId().isBlank()
+                || guestRequest.getGuestName() == null
+                || guestRequest.getGuestName().isBlank()) {
+            throw new BusinessException(ErrorCode.DATA_NOT_ENOUGH);
+        }
+    }
+
+    private boolean isGuestSecretValid(MeetingParticipant participant, GuestJoinRequest guestRequest) {
+        return participant.getGuestSecret() != null
+                && guestRequest.getGuestSecret() != null
+                && participant.getGuestSecret().equals(guestRequest.getGuestSecret());
     }
 }

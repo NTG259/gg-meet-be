@@ -1,5 +1,7 @@
 package com.meet.BE.service.user;
 
+import com.meet.BE.domain.dto.MeetingTokenPrincipal;
+import com.meet.BE.domain.entity.User;
 import com.meet.BE.domain.entity.VerificationToken;
 import com.meet.BE.domain.response.LoginResponse;
 import com.meet.BE.repository.TokenRepository;
@@ -62,6 +64,8 @@ public class SecurityService {
                 .issuedAt(now)
                 .expiresAt(validity)
                 .subject(loginResponse.getUser().getEmail())
+                .claim("tokenType", "access")
+                .claim("tokenVersion", resolveCurrentAccessTokenVersion(loginResponse.getUser().getEmail()))
                 .claim("user", userToken)
                 .claim("roles", userToken.getRole())
                 .build();
@@ -117,18 +121,40 @@ public class SecurityService {
     // =========================================================================
     // 2. GIẢI MÃ VÉ MEETING (Dùng NimbusJwtDecoder)
     // =========================================================================
+    public MeetingTokenPrincipal parseMeetingToken(String token) {
+        Jwt jwt = decodeToken(token);
+
+        Object participantIdObj = jwt.getClaim("participantId");
+        Object meetingCodeObj = jwt.getClaim("meetingCode");
+        Object roleObj = jwt.getClaim("role");
+
+        if (participantIdObj == null || meetingCodeObj == null || roleObj == null) {
+            throw new BadJwtException("Invalid meeting token claims");
+        }
+
+        return new MeetingTokenPrincipal(
+                Long.parseLong(participantIdObj.toString()),
+                meetingCodeObj.toString(),
+                roleObj.toString()
+        );
+    }
+
     public Long getParticipantIdFromToken(String token) {
-        // Tạo Decoder từ chính Secret Key của bạn
+        return parseMeetingToken(token).participantId();
+    }
+
+    private Jwt decodeToken(String token) {
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(getSecretKey())
                 .macAlgorithm(JWT_ALGORITHM)
                 .build();
 
-        // Giải mã token
-        Jwt jwt = jwtDecoder.decode(token);
+        return jwtDecoder.decode(token);
+    }
 
-        // Lấy trường participantId ra và parse về Long
-        Object participantIdObj = jwt.getClaim("participantId");
-        return Long.parseLong(participantIdObj.toString());
+    private long resolveCurrentAccessTokenVersion(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::getAccessTokenVersion)
+                .orElse(0L);
     }
 
     @Transactional

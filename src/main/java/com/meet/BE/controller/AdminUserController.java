@@ -23,8 +23,10 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<PagedResponse<AdminUserResponseDTO>>> getUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(adminUserService.getUsers(page, size, search));
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(adminUserService.getUsers(page, size, search, role, status));
     }
 
     @GetMapping("/{userId}")
@@ -48,5 +50,15 @@ public class AdminUserController {
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long userId) {
         return ResponseEntity.ok(adminUserService.deleteUser(userId));
+    }
+
+    @PostMapping("/{userId}/ban")
+    public ResponseEntity<ApiResponse<AdminUserResponseDTO>> banUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.banUser(userId));
+    }
+
+    @PostMapping("/{userId}/unban")
+    public ResponseEntity<ApiResponse<AdminUserResponseDTO>> unbanUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.unbanUser(userId));
     }
 }
