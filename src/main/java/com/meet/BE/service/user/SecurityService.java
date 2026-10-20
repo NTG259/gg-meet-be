@@ -189,6 +189,7 @@ public class SecurityService {
         if (verificationToken.isPresent()) {
             VerificationToken verificationTokenOverride = verificationToken.get();
             verificationTokenOverride.setToken(verifyCode);
+            verificationTokenOverride.setExpiryDate(LocalDateTime.now().plusMinutes(10));
             tokenRepository.save(verificationTokenOverride);
         } else {
             // Gửi mã lần đầu
